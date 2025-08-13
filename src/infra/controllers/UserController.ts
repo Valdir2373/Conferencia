@@ -1,17 +1,19 @@
-import { IRequest } from "../server/interfaces/http/IRequest";
-import { IResponse } from "../server/interfaces/http/IResponse";
+import { IRequest } from "../server/interfaces/IRequest";
+import { IResponse } from "../server/interfaces/IResponse";
+import { IServer } from "../server/interfaces/IServer";
 import { UsersService } from "../service/UsersService";
 import { UserOutputDTO } from "../../application/users/DTO/UserOutput";
-import { IServer } from "../server/interfaces/http/IServer";
 
 import { UsersSchemas } from "../../schemas/UsersSchemas";
 import { IEmailService } from "../interfaces/IEmailService";
+import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
 
 export class UsersControllers {
   constructor(
     private userService: UsersService,
     private usersSchemas: UsersSchemas,
-    private email: IEmailService
+    private email: IEmailService,
+    private token: IAuthTokenManager
   ) {}
 
   public async mountRoutes(server: IServer) {
@@ -28,6 +30,18 @@ export class UsersControllers {
       this.getUserEmail.bind(this)
     );
     server.registerRouter("get", "/users/id/:id", this.getUserId.bind(this));
+    server.registerRouter(
+      "put",
+      "/users/update",
+      this.resetPassword.bind(this)
+    );
+  }
+
+  private async resetPassword(req: IRequest, res: IResponse) {
+    const { password, newPass } = req.body;
+    const user = await this.getEmailByToken(req, res);
+    if (!user) return;
+    console.log(user);
   }
 
   private async createUser(req: IRequest, res: IResponse): Promise<any> {
@@ -79,5 +93,13 @@ export class UsersControllers {
     const response = await this.userService.getByEmailUser(req.params.email);
     if (response) return res.status(200).json(response);
     res.status(401).json({ message: "BAD__REQUEST" });
+  }
+  private async getEmailByToken(req: IRequest, res: IResponse) {
+    const tokenAcess = req.cookies?.tokenAcess;
+    if (!tokenAcess) {
+      res.json({ message: "unauthorized" });
+      return;
+    }
+    return this.token.verifyToken(tokenAcess);
   }
 }

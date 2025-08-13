@@ -6,14 +6,15 @@ import { IDTOBuilderAndValidator } from "../../shared/validator/IFieldsValidator
 import { IEmailService } from "../interfaces/IEmailService";
 import { IUserLogin } from "../interfaces/IUserLogin";
 import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
-import { IRequest } from "../server/interfaces/http/IRequest";
-import { IResponse } from "../server/interfaces/http/IResponse";
-import { IServer } from "../server/interfaces/http/IServer";
+import { IRequest } from "../server/interfaces/IRequest";
+import { IResponse } from "../server/interfaces/IResponse";
+import { IServer } from "../server/interfaces/IServer";
 import { UsersService } from "../service/UsersService";
 
 export class AuthController {
   private schemasUserLogin: IDTOBuilderAndValidator<IUserLogin>;
   private schemasUserDto: IDTOBuilderAndValidator<UserInputDTO>;
+  private isProduction = process.env.NODE_ENV === "production";
 
   constructor(
     private server: IServer,
@@ -42,6 +43,47 @@ export class AuthController {
       "/resend-verification/:email",
       this.resendVerification.bind(this)
     );
+    server.registerRouter("get", "/loggout", this.loggoutUser.bind(this));
+    server.registerRouter("get", "/localizacao", this.getLoc.bind(this));
+    server.eachRequestToAllRoutes(this.refreshToken.bind(this));
+  }
+
+  private async loggoutUser(req: IRequest, res: IResponse) {
+    try {
+      this.isProduction = process.env.NODE_ENV === "production";
+
+      res.clearCookie("tokenAcess", {
+        httpOnly: true,
+        secure: this.isProduction,
+        sameSite: "none",
+        path: "/",
+      });
+
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: this.isProduction,
+        sameSite: "none",
+        path: "/",
+      });
+
+      return res.status(200).json({ message: "Logout realizado com sucesso" });
+    } catch (error) {
+      console.error("Erro ao realizar logout:", error);
+      return res
+        .status(500)
+        .json({ message: "Erro interno do servidor ao fazer logout" });
+    }
+  }
+  private async getLoc(req: IRequest, res: IResponse) {
+    const { lat, lon } = req.query;
+    if (lat && lon) {
+      console.log(`Localização recebida: Latitude ${lat}, Longitude ${lon}`);
+      res.send(
+        `Obrigado! Recebemos sua localização: Latitude ${lat}, Longitude ${lon}.`
+      );
+    } else {
+      res.status(400).send("Parâmetros de latitude e longitude ausentes.");
+    }
   }
 
   private async verifyEmail(req: IRequest, res: IResponse) {
@@ -54,9 +96,7 @@ export class AuthController {
     const userOutput = await this.usersService.getByEmailUser(email);
     if (!userOutput) return;
     this.cookieDefinerUser(res, userOutput);
-    return res.redirect(
-      "https://stream-server-vava.onrender.com:443/index.html"
-    );
+    return res.redirect("http://localhost:5173/");
   }
 
   private async resendVerification(
@@ -67,7 +107,7 @@ export class AuthController {
       const { email } = req.params;
       const verified = await this.usersService.verifyUserByEmail(email);
       if (verified)
-        return res.status(400).json({ message: "email already verified" });
+        return res.status(400).json({ message: "Email já verificado" });
       const userOutput = await this.usersService.getByEmailUser(email);
       if (!userOutput) return;
       await this.emailService.sendEmailVerificationUser(userOutput);
@@ -82,12 +122,27 @@ export class AuthController {
 
   public async refreshToken(req: IRequest, res: IResponse) {
     try {
-      const token: any = this.verifyCookieToRefresh(req);
+      const result = this.verifyCookieToRefresh(req);
 
-      if (!token.status)
-        return res.status(401).json({ message: "unauthorized" });
+      if (!result || !result.status) {
+        res.clearCookie("tokenAcess", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: this.isProduction ? "none" : "lax",
+          path: "/",
+        });
+        res.clearCookie("refreshToken", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: this.isProduction ? "none" : "lax",
+          path: "/",
+        });
+        return res.status(401).json({
+          message: "Refresh token inválido ou expirado. Faça login novamente.",
+        });
+      }
 
-      const user = token.jwt;
+      const user = result.jwt;
 
       const userOutput: UserOutputDTO = {
         username: user.username,
@@ -95,45 +150,112 @@ export class AuthController {
         id: user.id,
       };
 
+      console.log("Token of user refreshed: " + user.username);
+
       res.cookie("tokenAcess", this.token.generateToken(userOutput), {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         maxAge: 16 * 60 * 1000,
-        sameSite: "lax",
+        sameSite: this.isProduction ? "none" : "lax",
         path: "/",
       });
-      res.status(200).json({ message: "token enviado" });
+
+      return res.status(200).json({ message: "token enviado" });
     } catch (error) {
-      console.log(error);
-      res.status(500).json({ message: "internal server error" });
+      console.error("Erro no refreshToken:", error);
+
+      res.clearCookie("tokenAcess", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: this.isProduction ? "none" : "lax",
+        path: "/",
+      });
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: this.isProduction ? "none" : "lax",
+        path: "/",
+      });
+      return res
+        .status(500)
+        .json({ message: "Erro interno do servidor ao atualizar token." });
     }
   }
 
   public async verifyUser(req: IRequest, res: IResponse) {
-    const cookie: any = this.verifyCookieToAcess(req);
+    const result = this.verifyCookieToAcess(req);
 
-    cookie ? res.send(cookie) : res.send(false);
-  }
-
-  verifyCookieToRefresh(req: IRequest) {
-    const cookie = req.cookies;
-    if (!cookie) return;
-    const token = cookie.refreshToken;
-    const tokenAcessNotPermitted = cookie.tokenAcess;
-    try {
-      if (!tokenAcessNotPermitted) return this.token.verifyRefreshToken(token);
-      return true;
-    } catch (error: any) {
-      if (error.message === "Token inválido ou malformado") return false;
+    if (result && result.status) {
+      return res.status(200).json({
+        username: result.jwt.username,
+        email: result.jwt.email,
+        id: result.jwt.id,
+      });
+    } else {
+      return res.status(401).json({ message: "Não autorizado." });
     }
   }
 
-  verifyCookieToAcess(req: IRequest): boolean | any {
+  verifyCookieToRefresh(req: IRequest): { status: boolean; jwt?: any } {
     const cookie = req.cookies;
-    if (!cookie) return false;
-    const tokenAcess = this.token.verifyToken(cookie.tokenAcess);
+    if (!cookie || !cookie.refreshToken) {
+      console.log(
+        "verifyCookieToRefresh: refreshToken não encontrado ou sem cookies."
+      );
+      return { status: false, jwt: null };
+    }
 
-    return tokenAcess.status ? tokenAcess.jwt : false;
+    const token = cookie.refreshToken;
+
+    try {
+      const result = this.token.verifyRefreshToken(token);
+      if (result.status) {
+        console.log("verifyCookieToRefresh: refreshToken válido.");
+        return result;
+      } else {
+        console.log(
+          "verifyCookieToRefresh: refreshToken inválido ou expirado."
+        );
+        return { status: false, jwt: null };
+      }
+    } catch (error: any) {
+      console.error(
+        "verifyCookieToRefresh: Erro ao verificar refreshToken:",
+        error.message
+      );
+
+      return { status: false, jwt: null };
+    }
+  }
+
+  verifyCookieToAcess(req: IRequest): { status: boolean; jwt?: any } {
+    const cookie = req.cookies;
+
+    if (!cookie || !cookie.tokenAcess) {
+      console.log(
+        "verifyCookieToAcess: tokenAcess não encontrado ou sem cookies."
+      );
+      return { status: false, jwt: null };
+    }
+
+    const tokenAcess = cookie.tokenAcess;
+    try {
+      const result = this.token.verifyToken(tokenAcess);
+      if (result.status) {
+        console.log("verifyCookieToAcess: tokenAcess válido.");
+        return result;
+      } else {
+        console.log("verifyCookieToAcess: tokenAcess inválido ou expirado.");
+        return { status: false, jwt: null };
+      }
+    } catch (error: any) {
+      console.error(
+        "verifyCookieToAcess: Erro ao verificar tokenAcess:",
+        error.message
+      );
+
+      return { status: false, jwt: null };
+    }
   }
 
   private async login(req: IRequest, res: IResponse): Promise<void> {
@@ -143,8 +265,6 @@ export class AuthController {
       if (!this.verifyInputUserLogin(inputData, res)) return;
 
       const userOutput = await this.usersService.loginUserService(inputData);
-
-      console.log(userOutput);
 
       if (typeof userOutput === "string")
         return res.status(401).json(userOutput);
@@ -177,18 +297,20 @@ export class AuthController {
   }
 
   cookieDefinerUser(res: IResponse, userOutput: UserOutputDTO) {
+    console.log(this.isProduction);
+
     res.cookie("refreshToken", this.token.generateRefreshToken(userOutput), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: this.isProduction,
       maxAge: 12 * 24 * 60 * 60 * 1000,
-      sameSite: "lax",
+      sameSite: this.isProduction ? "none" : "lax",
       path: "/",
     });
     res.cookie("tokenAcess", this.token.generateToken(userOutput), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: this.isProduction,
       maxAge: 16 * 60 * 1000,
-      sameSite: "lax",
+      sameSite: this.isProduction ? "none" : "lax",
       path: "/",
     });
   }

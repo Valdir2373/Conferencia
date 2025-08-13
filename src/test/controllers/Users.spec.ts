@@ -36,12 +36,9 @@ describe("Aqui está, todos os testes, de controllers: ", () => {
   });
 
   it("Deve pegar, um usuario, pela id: ", async () => {
-    // console.log(idUser);
-
     const responseJson = await fetch(
       "http://localhost:8080/users/id/" + idUser
     ).then((r) => r.json());
-    // console.log(responseJson);
 
     expect(responseJson).toBeDefined();
   });

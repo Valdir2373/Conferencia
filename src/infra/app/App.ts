@@ -1,10 +1,9 @@
-import { ExpressAdapter } from "../server/implementations/ExpressAdapter";
-import { IServer } from "../server/interfaces/http/IServer";
+import { ExpressAdapter } from "../server/implementation/ExpressAdapter";
+import { IServer } from "../server/interfaces/IServer";
 import { UsersModule } from "../modules/UsersModule";
 import { ConfigDB } from "../../config/ConfigDB";
 import { IDataAccess } from "../../domain/repository/IDataAccess";
 import { JsonwebtokenAuthTokenManager } from "../security/JwtAuthService";
-import { ViewModule } from "../modules/ViewModule";
 import { ZodDTOBuilderAndValidator } from "../../shared/validator/ZodDTOBuilderAndValidatorImpl";
 import { UserInputDTO } from "../../application/users/DTO/UserInput";
 import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
@@ -18,25 +17,18 @@ import { NodemailerEmailService } from "../email/NodemailerEmailService";
 import { createTransport } from "nodemailer";
 import { IEmailService } from "../interfaces/IEmailService";
 import { AdminModule } from "../modules/AdminModule";
-
-import { WsWebSocketServerAdapter } from "../server/implementations/ws/WebSocketAdapter";
-import { IWebSocketServer } from "../server/interfaces/ws/IWebSocketServer";
 import { Server as HttpServer } from "http";
-
-import { IClientRegistry } from "../client/interfaces/IClientRegistry";
-import { ClientRegistry } from "../client/ClientRegistry";
-import { IWebSocketMessageHandler } from "../handlers/interfaces/IWebSocketMessageHandler";
-import { ClientVisualizer } from "../handlers/ClientVisualizer";
-import { CaptureClientConnectHandler } from "../handlers/CaptureClientConnectHandler";
-import { ImageRelayHandler } from "../handlers/ImageRelayHandler";
-import { UnexpectedMessageHandler } from "../handlers/UnexpectedMessageHandler";
-import { WebSocketMessageRouter } from "../server/implementations/ws/WebSocketMessageRouter";
 import { CreateIdImpl } from "../../shared/utils/CreateId";
 import { ICreateId } from "../../domain/services/ICreateId";
 import { IPasswordHasher } from "../../domain/services/IPasswordHasher";
 import { BcryptPasswordHasher } from "../security/BcryptPasswordHasher";
 import { UsersService } from "../service/UsersService";
 import { UserRepository } from "../repository/UsersRepository";
+import { IPdfReadConvert } from "../../domain/services/IPdfReadConvert";
+import { PdfParseImpl } from "../pdf/PdfParserImpl";
+import { ConferenceModules } from "../modules/ConferenceModules";
+import { ConferenceInput } from "../../application/conferences/DTO/ConferenceInput";
+import { ConferenceSchemas } from "../../schemas/ConferenceSchemas";
 
 export class AppModule {
   private configDB: ConfigDB;
@@ -45,14 +37,12 @@ export class AppModule {
   private authTokenManager: IAuthTokenManager;
   private email: IEmailService;
   private createId: ICreateId;
+  private pdfReadConvert: IPdfReadConvert;
   private passwordHasher: IPasswordHasher;
   private server: IServer;
-  private webServer: IWebSocketServer;
-
-  private clientRegistry: IClientRegistry;
-  private webSocketRouter: WebSocketMessageRouter;
 
   constructor() {
+    this.pdfReadConvert = new PdfParseImpl();
     this.configDB = new ConfigDB();
     this.dbHandler = new MongooseHandler(this.configDB.getConfigDB());
     this.dataAccess = new MongooseDataAccess(this.dbHandler);
@@ -67,52 +57,39 @@ export class AppModule {
     this.passwordHasher = new BcryptPasswordHasher();
 
     this.server = new ExpressAdapter();
-
-    this.clientRegistry = new ClientRegistry();
-
-    const clientVisualizer = new ClientVisualizer(
-      this.clientRegistry,
-      this.getUsersService.bind(this)
-    );
-    const captureClientConnectHandler = new CaptureClientConnectHandler(
-      this.clientRegistry
-    );
-    const imageRelayHandler = new ImageRelayHandler(this.clientRegistry);
-    const unexpectedMessageHandler = new UnexpectedMessageHandler();
-
-    const messageHandlers: IWebSocketMessageHandler[] = [
-      clientVisualizer,
-      captureClientConnectHandler,
-      imageRelayHandler,
-      unexpectedMessageHandler,
-    ];
-    this.webSocketRouter = new WebSocketMessageRouter(messageHandlers);
-
-    this.webServer = new WsWebSocketServerAdapter();
   }
 
-  private injectDepenciesOnSchemas() {
+  private injectDepenciesOnSchemasUser() {
     const validatorUserInputDto = new ZodDTOBuilderAndValidator<UserInputDTO>();
     const validatorUserLogin = new ZodDTOBuilderAndValidator<IUserLogin>();
     return new UsersSchemas(validatorUserInputDto, validatorUserLogin);
   }
+  private injectDepenciesOnSchemasConference() {
+    const validatorConferenceInputDto =
+      new ZodDTOBuilderAndValidator<ConferenceInput>();
+    return new ConferenceSchemas(validatorConferenceInputDto);
+  }
 
   private Modules() {
-    new UsersModule(
+    new ConferenceModules(
       this.server,
       this.dataAccess,
+      this.createId,
+      this.pdfReadConvert,
+      this.authTokenManager,
+      this.injectDepenciesOnSchemasConference()
+    );
+    new UsersModule(
+      this.server,
       this.authTokenManager,
       this.email,
-      this.createId,
-      this.passwordHasher,
       this.getUsersService.bind(this),
-      this.injectDepenciesOnSchemas
+      this.injectDepenciesOnSchemasUser
     );
-    new ViewModule(this.server);
     new AdminModule(
       this.server,
       this.dataAccess,
-      this.injectDepenciesOnSchemas
+      this.injectDepenciesOnSchemasUser
     );
   }
 
@@ -122,16 +99,6 @@ export class AppModule {
     const httpServerInstance: HttpServer = this.server.listen(
       port
     ) as HttpServer;
-
-    this.webServer.start(httpServerInstance);
-
-    // this.webServer.onConnection((socket) => {});  <- trabalhar futuramente para gerenciar, desconexões
-    this.webServer.onMessage((socket, data, isBinary) => {
-      this.webSocketRouter.route(socket, data, isBinary);
-    });
-
-    console.log(`Servidor HTTP ouvindo na porta ${port}`);
-    console.log(`Servidor WebSocket integrado e rodando.`);
 
     process.on("SIGTERM", async () => {
       console.log("SIGTERM recebido. Fechando pool de DB e servidores...");
@@ -144,9 +111,6 @@ export class AppModule {
   }
 
   private async gracefulShutdown(httpServer: HttpServer): Promise<void> {
-    this.webServer.close();
-    console.log("Servidor WebSocket fechado.");
-
     httpServer.close(async () => {
       console.log("Servidor HTTP fechado.");
 

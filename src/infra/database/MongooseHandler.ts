@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { IDatabaseHandler } from "../../domain/repository/IDatabaseHandler"; // Ajuste o caminho se necessário
+import { IDatabaseHandler } from "../../domain/repository/IDatabaseHandler";
 
 export class MongooseHandler implements IDatabaseHandler<mongoose.Mongoose> {
   private connectionInstance: mongoose.Mongoose | null = null;
@@ -37,7 +37,7 @@ export class MongooseHandler implements IDatabaseHandler<mongoose.Mongoose> {
       try {
         await this.connectionInstance.disconnect();
         console.log("Conexão com MongoDB fechada.");
-        this.connectionInstance = null; // Limpa a instância após desconectar
+        this.connectionInstance = null;
       } catch (error) {
         console.error("Erro ao fechar a conexão com MongoDB:", error);
         throw new Error("Falha ao fechar a conexão com o banco de dados.");

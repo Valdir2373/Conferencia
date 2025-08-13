@@ -50,8 +50,6 @@ export class MongooseDataAccess implements IDataAccess {
       ...(query as Record<string, any>),
     };
     if ("id" in formattedQuery && formattedQuery.id !== undefined) {
-      // Se 'id' é um UUID string, o MongoDB o armazenará como _id string.
-      // Apenas renomeamos a chave de 'id' para '_id'.
       formattedQuery._id = formattedQuery.id;
       delete formattedQuery.id;
     }
@@ -65,7 +63,7 @@ export class MongooseDataAccess implements IDataAccess {
    */
   private formatResult<T>(doc: any): T {
     if (doc && doc._id) {
-      doc.id = doc._id.toString(); // Garante que é uma string
+      doc.id = doc._id.toString();
       delete doc._id;
     }
     return doc as T;
@@ -85,7 +83,7 @@ export class MongooseDataAccess implements IDataAccess {
     const projection: Record<string, 0 | 1> = {};
     selectFields.forEach((field) => {
       if (field === "id") {
-        projection["_id"] = 1; // Mapeia 'id' para '_id' do MongoDB
+        projection["_id"] = 1;
       } else {
         projection[field as string] = 1;
       }
@@ -146,13 +144,11 @@ export class MongooseDataAccess implements IDataAccess {
   ): Promise<string | number | undefined> {
     await this.ensureConnected();
     const dataToInsert = { ...(data as Record<string, any>) };
-    // Se o 'id' já foi gerado na sua entidade (ex: UUID), ele deve ser o '_id' do MongoDB
+
     if ("id" in dataToInsert) {
-      dataToInsert._id = dataToInsert.id; // Mapeia id da entidade para _id do MongoDB
-      delete dataToInsert.id; // Remove a propriedade 'id' original
+      dataToInsert._id = dataToInsert.id;
+      delete dataToInsert.id;
     } else {
-      // Se 'id' não existe na entidade, o MongoDB gerará um ObjectId padrão
-      // Não adicione lógica de geração de UUID aqui, pois isso é responsabilidade do domínio.
     }
 
     try {
@@ -177,7 +173,7 @@ export class MongooseDataAccess implements IDataAccess {
     await this.ensureConnected();
     const formattedQuery = this.formatQuery(query);
     const updateData = { ...(data as Record<string, any>) };
-    // Remove o campo 'id' e '_id' dos dados a serem atualizados
+
     if ("id" in updateData) delete updateData.id;
     if ("_id" in updateData) delete updateData._id;
 

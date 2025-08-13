@@ -2,7 +2,7 @@ import { IDataAccess } from "../../domain/repository/IDataAccess";
 import { UsersSchemas } from "../../schemas/UsersSchemas";
 import { AdminController } from "../controllers/AdminController";
 import { AdminRepository } from "../repository/AdminRepository";
-import { IServer } from "../server/interfaces/http/IServer";
+import { IServer } from "../server/interfaces/IServer";
 import { AdminService } from "../service/AdminService";
 
 export class AdminModule {

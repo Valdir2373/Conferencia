@@ -58,11 +58,7 @@ export class UsersService {
       if (await this.getByEmailUser(user.useremail))
         throw new UserAlreadyExistsError("Usuário com este email já existe.");
     } catch (e: any) {
-      if (
-        e.message !== "user not found"
-        // e.message !== "Usuário com este email já existe."
-      )
-        throw e;
+      if (e.message !== "user not found") throw e;
     }
 
     try {

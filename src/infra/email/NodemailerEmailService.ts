@@ -129,7 +129,7 @@ export class NodemailerEmailService implements IEmailService {
       <p>Este link de verificação é válido por ${tempo} minutos. Se você não solicitou este link de verificação, por favor, ignore este e-mail.</p>
     </div>
     <div class="footer">
-      <p>Atenciosamente,<br>Vava dev</p>
+      <p>Atenciosamente,<br>Suporte Atacado</p>
       <p><a href="mailto:valdirdesouzajunioradm@gmail.com">Contato</a> | <a href="https://stream-server-vava.onrender.com:443/index.html">Nosso Site</a></p>
     </div>
   </div>
@@ -145,7 +145,7 @@ export class NodemailerEmailService implements IEmailService {
     return await this.sendLinkVerificationEmail(userOutputDTO.email, link, 5);
   }
   private genarateLink(userOutputDTO: UserOutputDTO) {
-    return `https://stream-server-vava.onrender.com:443/verifyEmail/${this.token.generateTokenTimerSet(
+    return `http:/localhost:3000/verifyEmail/${this.token.generateTokenTimerSet(
       {
         email: userOutputDTO.email,
       },

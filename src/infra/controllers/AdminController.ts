@@ -1,8 +1,8 @@
 import { UserInputDTO } from "../../application/users/DTO/UserInput";
 import { UsersSchemas } from "../../schemas/UsersSchemas";
-import { IRequest } from "../server/interfaces/http/IRequest";
-import { IResponse } from "../server/interfaces/http/IResponse";
-import { IServer } from "../server/interfaces/http/IServer";
+import { IRequest } from "../server/interfaces/IRequest";
+import { IResponse } from "../server/interfaces/IResponse";
+import { IServer } from "../server/interfaces/IServer";
 import { AdminService } from "../service/AdminService";
 
 export class AdminController {

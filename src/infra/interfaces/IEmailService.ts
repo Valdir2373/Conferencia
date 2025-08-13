@@ -1,5 +1,3 @@
-// src/core/services/IEmailService.ts
-
 import { UserOutputDTO } from "../../application/users/DTO/UserOutput";
 import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
 

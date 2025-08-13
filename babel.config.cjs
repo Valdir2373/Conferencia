@@ -1,16 +1,29 @@
-// babel.config.cjs
 module.exports = {
   presets: [
     [
       "@babel/preset-env",
       {
-        targets: { node: "current" },
-        // Remova 'modules: false'. Deixe o Babel decidir (ou use 'auto' ou 'cjs').
-        // O Jest funciona melhor quando o Babel transpila import/export para CommonJS no contexto de teste.
-        // A menos que você esteja usando um Jest Runner específico para ESM.
-        // modules: 'auto' é o padrão, que muitas vezes significa CJS para Node.
+        targets: {
+          node: "current",
+        },
+        modules: "commonjs",
       },
     ],
     "@babel/preset-typescript",
   ],
+  plugins: [
+    ["@babel/plugin-proposal-decorators", { legacy: true }],
+    ["@babel/plugin-proposal-class-properties", { loose: true }],
+    // Este plugin adiciona a extensão correta aos imports, resolvendo o problema.
+    ["babel-plugin-add-import-extension", { extension: "cjs" }],
+    [
+      "babel-plugin-module-resolver",
+      {
+        alias: {
+          // Seus aliases aqui
+        },
+      },
+    ],
+  ],
+  ignore: ["**/*.d.ts"],
 };
