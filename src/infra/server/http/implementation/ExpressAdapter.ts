@@ -54,17 +54,6 @@ export class ExpressAdapter implements IServer {
     this.app = express();
     this.app.set("trust proxy", 1);
 
-    // const limiter = rateLimit({
-    //   windowMs: 15 * 60 * 1000,
-    //   max: 100,
-    //   message: JSON.stringify({
-    //     message:
-    //       "Muitas requisições vindas deste IP, tente novamente após 15 minutos.",
-    //   }),
-    //   standardHeaders: true,
-    //   legacyHeaders: false,
-    // });
-    // this.app.use(limiter);
     console.log("Rate limiter aplicado.");
 
     this.app.use(cookieparser());
@@ -80,11 +69,7 @@ export class ExpressAdapter implements IServer {
       cors({
         origin: (origin, callback) => {
           if (!origin) return callback(null, true);
-          if (
-            // allowedOrigins.indexOf(origin) !== -1 ||
-            // ngrokRegex.test(origin)
-            true
-          ) {
+          if (true) {
             return callback(null, true);
           } else {
             console.log(origin);

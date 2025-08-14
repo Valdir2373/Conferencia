@@ -5,7 +5,7 @@ import { ValidationError } from "../../shared/error/ValidationError";
 import { IDTOBuilderAndValidator } from "../../shared/validator/IFieldsValidator";
 import { IEmailService } from "../interfaces/IEmailService";
 import { IUserLogin } from "../interfaces/IUserLogin";
-import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
+import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
 import { IRequest } from "../server/middleware/interfaces/IRequest";
 import { IResponse } from "../server/middleware/interfaces/IResponse";
 import { IServer } from "../server/http/interface/IServer";
@@ -29,6 +29,11 @@ export class AuthController {
     this.mountRouters();
   }
   mountRouters() {
+    this.middlewareManagerRoutes.registerRouterAuthenticTokenToCreate(
+      "get",
+      "/verify/:idTokenCreate",
+      this.verifedWithSuccess.bind(this)
+    );
     this.middlewareManagerRoutes.registerRouter(
       "post",
       "/users/login",
@@ -60,9 +65,10 @@ export class AuthController {
       "/loggout",
       this.loggoutUser.bind(this)
     );
-    // this.middlewareManagerRoutes.eachRequestToAllRoutes(
-    //   this.refreshToken.bind(this)
-    // );
+  }
+
+  private async verifedWithSuccess(req: IRequest, res: IResponse) {
+    res.status(200).json({ message: "link autorizado." });
   }
 
   private async loggoutUser(req: IRequest, res: IResponse) {
@@ -128,7 +134,7 @@ export class AuthController {
 
   public async refreshToken(req: IRequest, res: IResponse) {
     try {
-      const result = this.verifyCookieToRefresh(req);
+      const result = await this.verifyCookieToRefresh(req);
 
       if (!result || !result.status) {
         res.clearCookie("tokenAcess", {
@@ -189,7 +195,7 @@ export class AuthController {
   }
 
   public async verifyUser(req: IRequest, res: IResponse) {
-    const result = this.verifyCookieToAcess(req);
+    const result = await this.verifyCookieToAcess(req);
 
     if (result && result.status) {
       return res.status(200).json({
@@ -202,7 +208,7 @@ export class AuthController {
     }
   }
 
-  verifyCookieToRefresh(req: IRequest): { status: boolean; jwt?: any } {
+  async verifyCookieToRefresh(req: IRequest): Promise<any> {
     const cookie = req.cookies;
     if (!cookie || !cookie.refreshToken) {
       console.log(
@@ -214,7 +220,7 @@ export class AuthController {
     const token = cookie.refreshToken;
 
     try {
-      const result = this.token.verifyRefreshToken(token);
+      const result = await this.token.verifyRefreshToken(token);
       if (result.status) {
         console.log("verifyCookieToRefresh: refreshToken válido.");
         return result;
@@ -234,7 +240,7 @@ export class AuthController {
     }
   }
 
-  verifyCookieToAcess(req: IRequest): { status: boolean; jwt?: any } {
+  async verifyCookieToAcess(req: IRequest): Promise<any> {
     const cookie = req.cookies;
 
     if (!cookie || !cookie.tokenAcess) {
@@ -246,7 +252,7 @@ export class AuthController {
 
     const tokenAcess = cookie.tokenAcess;
     try {
-      const result = this.token.verifyToken(tokenAcess);
+      const result = await this.token.verifyToken(tokenAcess);
       if (result.status) {
         console.log("verifyCookieToAcess: tokenAcess válido.");
         return result;

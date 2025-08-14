@@ -2,7 +2,7 @@ import { IServer } from "../server/http/interface/IServer";
 import { UsersService } from "../service/UsersService";
 import { UsersControllers } from "../controllers/UserController";
 import { UsersSchemas } from "../../schemas/UsersSchemas";
-import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
+import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
 import { IEmailService } from "../interfaces/IEmailService";
 import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 

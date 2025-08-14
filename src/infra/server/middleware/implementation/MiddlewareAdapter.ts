@@ -1,11 +1,11 @@
 import { HttpMethods, IServer } from "../../http/interface/IServer";
 import { IMiddlewareManagerRoutes } from "../interfaces/IMiddlewareManagerRoutes";
 import { IMiddlewareHandler } from "../interfaces/IMiddlewareHandler";
-import { IAuthUser } from "../../../security/tokens/IAuthUser";
-import { IAuthTokenManager } from "../../../security/tokens/IAuthTokenManager";
+import { IAuthUser } from "../../../security/interfaces/IAuthUser";
+import { IAuthTokenManager } from "../../../security/interfaces/IAuthTokenManager";
 import { IRequest } from "../interfaces/IRequest";
 import { IResponse } from "../interfaces/IResponse";
-import { IJwtUser } from "../../../interfaces/IJwtUser";
+import { IJwtUser } from "../../../security/interfaces/IJwtUser";
 
 export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
   constructor(
@@ -13,6 +13,35 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     private authUser: IAuthUser,
     private authTokenManager: IAuthTokenManager
   ) {}
+  registerRouterToAdmin(
+    methodHTTP: HttpMethods,
+    path: string,
+    ...handlers: IMiddlewareHandler[]
+  ): void {
+    this.server.registerRouter(
+      methodHTTP,
+      path,
+
+      async (req, res, next) => {
+        this.authenticationToAdmin(req, res, next);
+      },
+      ...handlers
+    );
+  }
+  registerRouterToCreateUser(
+    methodHTTP: HttpMethods,
+    path: string,
+    ...handlers: IMiddlewareHandler[]
+  ): void {
+    this.server.registerRouter(
+      methodHTTP,
+      path,
+      async (req, res, next) => {
+        this.authenticationFromIdTokenToCreate.bind(this);
+      },
+      ...handlers
+    );
+  }
 
   registerRouter(
     methodHTTP: HttpMethods,
@@ -43,6 +72,19 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     );
   }
 
+  registerRouterAuthenticTokenToCreate(
+    methodHTTP: HttpMethods,
+    path: string,
+    ...handlers: IMiddlewareHandler[]
+  ) {
+    this.server.registerRouter(
+      methodHTTP,
+      path,
+      this.authenticationFromIdTokenToCreate.bind(this),
+      ...handlers
+    );
+  }
+
   registerRouterToUserWithTwoFactors(
     methodHTTP: HttpMethods,
     path: string,
@@ -51,12 +93,10 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     this.server.registerRouter(
       methodHTTP,
       path,
-      // this.authenticationMiddleware.bind(this),
-      // this.authenticationOfPassword.bind(this),
-      async (req, res, next) => {
-        const user = await this.getUserByCookie(req, res);
 
-        req.userPayload = user;
+      async (req, res, next) => {
+        req.userPayload = await this.getUserByCookie(req, res);
+
         await this.authenticationOfPassword(req, res, next);
       },
       ...handlers
@@ -71,11 +111,6 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     try {
       const email = req.userPayload?.email;
       const password = req.body.password;
-
-      console.log();
-      console.log();
-      console.log(req.userPayload); // undefined
-
       if (!email || !password)
         return res.status(400).json({ message: "Email ou senha faltando" });
 
@@ -98,17 +133,46 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
   ) => {
     try {
       const user = await this.getUserByCookie(req, res);
-
-      console.log();
-      console.log(user);
-      console.log();
-
       req.userPayload = user;
 
       next();
     } catch (error: any) {
       return res.status(401).json({ message: "unauthorized" });
     }
+  };
+
+  private authenticationFromIdTokenToCreate: IMiddlewareHandler = async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const idTokenCreate = req.params.idTokenCreate;
+      const result = await this.authTokenManager.verifyTokenTimerSet(
+        idTokenCreate
+      );
+      if (result.status) return next();
+
+      throw new Error("token invalid");
+    } catch (error: any) {
+      return res.status(401).json({ message: "unauthorized" });
+    }
+  };
+
+  private authenticationToAdmin: IMiddlewareHandler = async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const user = await this.getUserByCookie(req, res);
+      req.userPayload = user;
+      console.log(user);
+
+      const admin = await this.authUser.verifyUserAdminByEmail(user.email);
+      if (admin) next();
+      return res.status(401).json({ message: "unauthorized" });
+    } catch (error: any) {}
   };
 
   private async getUserByCookie(
@@ -119,13 +183,13 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       res.status(401).json({ message: "No cookie" });
       throw new Error("cookies faltando na requisição");
     }
-    const { jwt, status } = this.authTokenManager.verifyToken(
+    const result = await this.authTokenManager.verifyToken(
       req.cookies.tokenAcess
     );
-    if (!status) {
+    if (!result.status) {
       res.status(401).json({ message: "unauthorized" });
       throw new Error("usuario não autorizado");
     }
-    return jwt;
+    return result.jwt;
   }
 }

@@ -12,6 +12,7 @@ export class ConfigEnv {
       jwtSecret: process.env.JWT_SECRET,
       jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
       jwtTimeSetSecret: process.env.JWT_TIME_SET_SECRET,
+      redisUrl: process.env.REDIS_URL,
     };
   }
 

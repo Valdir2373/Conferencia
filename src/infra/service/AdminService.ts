@@ -1,11 +1,9 @@
-import { IAdminRepository } from "../../domain/repository/IAdminRepository";
-import { CreateAdmin } from "../../application/admin/CreateAdmin";
-import { UserInputDTO } from "../../application/users/DTO/UserInput";
-import { UserEntities } from "../../domain/entities/User";
+import { CreateAdmin } from "../../application/users/use-case/CreateAdmin";
+import { IUserRepository } from "../../domain/repository/IUserRepository";
 
 export class AdminService {
   private createAdmin: CreateAdmin;
-  constructor(private AdminRepository: IAdminRepository) {
+  constructor(private AdminRepository: IUserRepository) {
     this.createAdmin = new CreateAdmin(this.AdminRepository);
   }
   async userToAdmin(email: string): Promise<object> {

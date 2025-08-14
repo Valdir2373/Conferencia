@@ -1,5 +1,5 @@
 import { UserOutputDTO } from "../../application/users/DTO/UserOutput";
-import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
+import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
 
 export interface IEmailService {
   getTransportToSendEmail(): any;

@@ -7,4 +7,5 @@ export interface IUserRepository {
   deleteUserById(id: string): Promise<number>;
   getAllUsers(): Promise<UserEntities[] | undefined>;
   UpdateUserById(userUpdated: UserEntities): Promise<UserEntities | undefined>;
+  saveAdmin(user: UserEntities): Promise<UserEntities | undefined>;
 }

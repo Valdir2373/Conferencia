@@ -16,6 +16,22 @@ export class UserRepository implements IUserRepository {
   ];
 
   constructor(private readonly dataAccess: IDataAccess) {}
+  public async saveAdmin(
+    user: UserEntities
+  ): Promise<UserEntities | undefined> {
+    user.updateFields({
+      adm: true,
+    });
+    const affectedRows = await this.dataAccess.update(
+      this.collectionName,
+      { id: user.id },
+      user
+    );
+    if (affectedRows > 0) {
+      return user;
+    }
+    return undefined;
+  }
 
   async getById(id: string): Promise<UserEntities | undefined> {
     const rawData = await this.dataAccess.findOne<UserEntities>(

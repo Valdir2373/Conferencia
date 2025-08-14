@@ -1,20 +1,27 @@
 import { IDataAccess } from "../../domain/repository/IDataAccess";
 import { UsersSchemas } from "../../schemas/UsersSchemas";
 import { AdminController } from "../controllers/AdminController";
-import { AdminRepository } from "../repository/AdminRepository";
+import { UserRepository } from "../repository/UsersRepository";
+import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
 import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 import { AdminService } from "../service/AdminService";
+import { UsersService } from "../service/UsersService";
 
 export class AdminModule {
   constructor(
     server: IMiddlewareManagerRoutes,
+    authTokenManager: IAuthTokenManager,
     dataAcess: IDataAccess,
+    private usersService: UsersService,
     private getUsersSchemas: () => UsersSchemas
   ) {
-    const adminRepository = new AdminRepository(dataAcess);
-    const adminService = new AdminService(adminRepository);
+    const userRepository = new UserRepository(dataAcess);
     const userSchemas = this.getUsersSchemas();
-    const adminController = new AdminController(adminService, server);
+    const adminController = new AdminController(
+      this.usersService,
+      authTokenManager,
+      server
+    );
     adminController.mountRouter();
   }
 }

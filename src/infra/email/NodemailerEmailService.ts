@@ -2,7 +2,7 @@ import { Transporter } from "nodemailer";
 import { IEmailService } from "../interfaces/IEmailService";
 import { ConfigEmail } from "../../config/ConfigEmail";
 import { UserOutputDTO } from "../../application/users/DTO/UserOutput";
-import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
+import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
 export type TransportFactory = (options: any) => Transporter;
 
 export class NodemailerEmailService implements IEmailService {

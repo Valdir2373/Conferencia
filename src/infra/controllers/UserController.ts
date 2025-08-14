@@ -6,7 +6,7 @@ import { UserOutputDTO } from "../../application/users/DTO/UserOutput";
 
 import { UsersSchemas } from "../../schemas/UsersSchemas";
 import { IEmailService } from "../interfaces/IEmailService";
-import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
+import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
 import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 
 export class UsersControllers {
@@ -19,12 +19,12 @@ export class UsersControllers {
   ) {}
 
   public async mountRoutes() {
-    this.middlewareManagerRoutes.registerRouter(
+    this.middlewareManagerRoutes.registerRouterAuthenticTokenToCreate(
       "post",
-      "/register",
+      "/register/:idTokenCreate",
       this.createUser.bind(this)
     );
-    this.middlewareManagerRoutes.registerRouter(
+    this.middlewareManagerRoutes.registerRouterToAdmin(
       "get",
       "/users",
       this.allUsers.bind(this)
@@ -65,14 +65,13 @@ export class UsersControllers {
 
       if (!inputData)
         return res.status(401).json({ ERROR: "user field not found " });
-
       this.usersSchemas.usersInputValidator(inputData);
-
       const userOutput: UserOutputDTO = await this.userService.createNewUser(
         inputData
       );
-
       await this.email.sendEmailVerificationUser(userOutput);
+      const tokenToRevoke = req.params.idTokenCreate;
+      await this.token.revokeTokenTimerSet(tokenToRevoke);
       return res.status(201).json(userOutput);
     } catch (e: any) {
       if (e.message === "Erro de validação do DTO") return;

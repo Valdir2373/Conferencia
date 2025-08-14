@@ -3,11 +3,11 @@ import { ICreateId } from "../../domain/services/ICreateId";
 import { IPdfReadConvert } from "../../domain/services/IPdfReadConvert";
 import { ConferenceController } from "../controllers/ConferenceController";
 import { ConferenceRepository } from "../repository/ConferenceRepository";
-import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
+import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
 import { IServer } from "../server/http/interface/IServer";
 import { ConferenceSchemas } from "../../schemas/ConferenceSchemas";
 import { ConferencesService } from "../service/ConferenceService";
-import { IAuthUser } from "../security/tokens/IAuthUser";
+import { IAuthUser } from "../security/interfaces/IAuthUser";
 import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 
 export class ConferenceModules {

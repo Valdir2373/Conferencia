@@ -6,7 +6,7 @@ import { IDataAccess } from "../../domain/repository/IDataAccess";
 import { JsonwebtokenAuthTokenManager } from "../security/JwtAuthService";
 import { ZodDTOBuilderAndValidator } from "../../shared/validator/ZodDTOBuilderAndValidatorImpl";
 import { UserInputDTO } from "../../application/users/DTO/UserInput";
-import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
+import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
 import { UsersSchemas } from "../../schemas/UsersSchemas";
 import { IUserLogin } from "../interfaces/IUserLogin";
 import { IDatabaseHandler } from "../../domain/repository/IDatabaseHandler";
@@ -29,8 +29,8 @@ import { PdfParseImpl } from "../pdf/PdfParserImpl";
 import { ConferenceModules } from "../modules/ConferenceModules";
 import { ConferenceInput } from "../../application/conferences/DTO/ConferenceInput";
 import { ConferenceSchemas } from "../../schemas/ConferenceSchemas";
-import { IAuthUser } from "../security/tokens/IAuthUser";
-import { AuthUser } from "../security/AuthUser";
+import { IAuthUser } from "../security/interfaces/IAuthUser";
+import { AuthUser } from "../security/auth/AuthUser";
 import { AuthController } from "../controllers/AuthController";
 import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 import { MiddlewareAdapter } from "../server/middleware/implementation/MiddlewareAdapter";
@@ -103,7 +103,9 @@ export class AppModule {
     );
     new AdminModule(
       this.middlewareManagerRoutes,
+      this.authTokenManager,
       this.dataAccess,
+      this.userService,
       this.injectDepenciesOnSchemasUser
     );
     new AuthController(

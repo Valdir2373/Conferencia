@@ -22,4 +22,19 @@ export interface IMiddlewareManagerRoutes {
     path: string,
     ...handlers: IMiddlewareHandler[]
   ): void;
+  registerRouterAuthenticTokenToCreate(
+    methodHTTP: HttpMethods,
+    path: string,
+    ...handlers: IMiddlewareHandler[]
+  ): void;
+  registerRouterToCreateUser(
+    methodHTTP: HttpMethods,
+    path: string,
+    ...handlers: IMiddlewareHandler[]
+  ): void;
+  registerRouterToAdmin(
+    methodHTTP: HttpMethods,
+    path: string,
+    ...handlers: IMiddlewareHandler[]
+  ): void;
 }

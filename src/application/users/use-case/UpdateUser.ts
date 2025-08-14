@@ -24,7 +24,7 @@ export class UpdateUserByEmail {
       hashedPassword,
       userEntity.id,
       userEntity.verification,
-      false,
+      userEntity.adm,
       userEntity.created_at,
       userEntity.updated_at
     );

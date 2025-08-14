@@ -1,5 +1,5 @@
-import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
-import { IAuthUser } from "../security/tokens/IAuthUser";
+import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
+import { IAuthUser } from "../security/interfaces/IAuthUser";
 
 import { IRequest } from "../server/middleware/interfaces/IRequest";
 import { IResponse } from "../server/middleware/interfaces/IResponse";
@@ -7,7 +7,7 @@ import { IServer } from "../server/http/interface/IServer";
 import { ConferencesService } from "../service/ConferenceService";
 import { ConferenceSchemas } from "../../schemas/ConferenceSchemas";
 import { IUploadFileOptions } from "../server/middleware/interfaces/IUploadFileOptions";
-import { IJwtUser } from "../interfaces/IJwtUser";
+import { IJwtUser } from "../security/interfaces/IJwtUser";
 import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 
 export class ConferenceController {
@@ -126,15 +126,15 @@ export class ConferenceController {
       res.status(401).json({ message: "No cookie" });
       throw new Error("usuario não autorizado");
     }
-    const { jwt, status } = this.authTokenManager.verifyToken(
+    const result = await this.authTokenManager.verifyToken(
       req.cookies.tokenAcess
     );
 
-    if (!status) {
+    if (!result.status) {
       res.status(401).json({ message: "unauthorized" });
       throw new Error("usuario não autorizado");
     }
-    return jwt;
+    return result.jwt;
   }
 
   private async addConference(req: IRequest, res: IResponse) {
@@ -142,18 +142,19 @@ export class ConferenceController {
       res.status(401).json({ message: "unauthorized" });
       throw new Error("No cookie");
     }
-    const { jwt, status } = this.authTokenManager.verifyToken(
+    const result = await this.authTokenManager.verifyToken(
       req.cookies.tokenAcess
     );
-    if (!status) return res.status(401).json({ message: "unauthorized" });
+    if (!result.status)
+      return res.status(401).json({ message: "unauthorized" });
     const inputData = {
-      email: jwt.email,
+      email: result.jwt.email,
       date: req.body.date,
       conference: req.body.conference,
     };
     if (!inputData)
       return res.status(400).json({ ERROR: "user field not found " });
-    // this.conferenceSchemas.conferenceInputValidator(inputData);
+
     return res.json({
       message: "conference created",
       success: this.conferencesService.createConference(inputData),

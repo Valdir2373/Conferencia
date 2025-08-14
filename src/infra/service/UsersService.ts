@@ -14,6 +14,8 @@ import { VerifyUserByEmail } from "../../application/users/use-case/VerifyUserBy
 import { UserAlreadyExistsError } from "../../shared/error/UserAlreadyExistsError";
 import { IUserLogin } from "../interfaces/IUserLogin";
 import { AuthenticateUserByEmail } from "../../application/users/use-case/AuthenticateUserByEmail";
+import { CreateAdmin } from "../../application/users/use-case/CreateAdmin";
+import { VerifyIfUserAdmin } from "../../application/users/use-case/VerifyIfUserAdmin";
 
 export class UsersService {
   private usersRepository: IUserRepository;
@@ -25,6 +27,8 @@ export class UsersService {
   private updateUserByEmailUseCase: UpdateUserByEmail;
   private loginUser: LoginUser;
   private verifyUserByEmailUseCase: VerifyUserByEmail;
+  private createAdmin: CreateAdmin;
+  private verifyIfUserAdmin: VerifyIfUserAdmin;
   authenticateUserByEmail: AuthenticateUserByEmail;
 
   constructor(
@@ -51,6 +55,8 @@ export class UsersService {
       this.usersRepository
     );
     this.loginUser = new LoginUser(this.usersRepository, this.passwordHasher);
+    this.createAdmin = new CreateAdmin(this.usersRepository);
+    this.verifyIfUserAdmin = new VerifyIfUserAdmin(this.usersRepository);
   }
 
   async createNewUser(user: UserInputDTO): Promise<UserOutputDTO> {
@@ -96,6 +102,23 @@ export class UsersService {
   }
   async getByEmailUser(email: string): Promise<UserOutputDTO | undefined> {
     return await this.getUserByEmail.execute(email);
+  }
+
+  async userToAdmin(
+    email: string
+  ): Promise<boolean | { status: false; message: string }> {
+    try {
+      const admin = await this.createAdmin.execute(email);
+      return admin;
+    } catch (e: any) {
+      if (e.message === "user already admin")
+        return { status: false, message: "user already admin" };
+      throw e;
+    }
+  }
+
+  async verifyIfUserAdminByEmail(email: string): Promise<boolean> {
+    return await this.verifyIfUserAdmin.execute(email);
   }
 
   async updateUserByEmail(
