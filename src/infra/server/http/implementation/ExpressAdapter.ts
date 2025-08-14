@@ -9,12 +9,12 @@ import cors from "cors";
 import cookieparser from "cookie-parser";
 import path from "path";
 import multer from "multer";
-import { MiddlewareHandler } from "../interfaces/IMiddlewareHandler";
-import { IRequest } from "../interfaces/IRequest";
-import { IResponse } from "../interfaces/IResponse";
-import { IServer, HttpMethods } from "../interfaces/IServer";
-import { IFile } from "../interfaces/IFile";
-import { ICookieOptions } from "../interfaces/ICookieOptions";
+import { IMiddlewareHandler } from "../../middleware/interfaces/IMiddlewareHandler";
+import { IRequest } from "../../middleware/interfaces/IRequest";
+import { IResponse } from "../../middleware/interfaces/IResponse";
+import { IServer, HttpMethods } from "../interface/IServer";
+import { IFile } from "../../middleware/interfaces/IFile";
+import { ICookieOptions } from "../../middleware/interfaces/ICookieOptions";
 import { Server } from "http";
 import fs from "fs";
 import rateLimit from "express-rate-limit";
@@ -119,7 +119,7 @@ export class ExpressAdapter implements IServer {
     );
   }
 
-  eachRequestToAllRoutes(...handlers: MiddlewareHandler[]): void {
+  eachRequestToAllRoutes(...handlers: IMiddlewareHandler[]): void {
     const expressHandlers = handlers.map((handler) =>
       this.wrapHandler(handler)
     );
@@ -136,38 +136,38 @@ export class ExpressAdapter implements IServer {
     return this.httpServerInstance;
   }
 
+  multerMiddleware = (
+    expressReq: Request,
+    expressRes: Response,
+    expressNext: NextFunction
+  ) => {
+    const uploadHandler = upload.single("pdfFile");
+    uploadHandler(expressReq, expressRes, (err) => {
+      if (err instanceof multer.MulterError) {
+        return expressRes
+          .status(400)
+          .json({ message: "MulterError: " + err.message });
+      } else if (err) {
+        return expressRes
+          .status(500)
+          .json({ message: "Erro ao fazer upload do arquivo" });
+      }
+      expressNext();
+    });
+  };
+
   registerFileUploadRouter(
     methodHTTP: HttpMethods,
     path: string,
-    ...handlers: MiddlewareHandler[]
+    ...handlers: IMiddlewareHandler[]
   ): void {
-    const multerMiddleware = (
-      expressReq: Request,
-      expressRes: Response,
-      expressNext: NextFunction
-    ) => {
-      const uploadHandler = upload.single("pdfFile");
-      uploadHandler(expressReq, expressRes, (err) => {
-        if (err instanceof multer.MulterError) {
-          return expressRes
-            .status(400)
-            .json({ message: "MulterError: " + err.message });
-        } else if (err) {
-          return expressRes
-            .status(500)
-            .json({ message: "Erro ao fazer upload do arquivo" });
-        }
-        expressNext();
-      });
-    };
-
     const expressHandlers = handlers.map((handler) =>
       this.wrapHandler(handler)
     );
 
     this.app[methodHTTP as keyof express.Application](
       path,
-      multerMiddleware,
+      this.multerMiddleware,
       ...expressHandlers
     );
 
@@ -176,11 +176,11 @@ export class ExpressAdapter implements IServer {
     );
   }
 
-  registerRouter(
+  async registerRouter(
     methodHTTP: HttpMethods,
     path: string,
-    ...handlers: MiddlewareHandler[]
-  ): void {
+    ...handlers: IMiddlewareHandler[]
+  ): Promise<void> {
     const expressHandlers = handlers.map((handler) =>
       this.wrapHandler(handler)
     );
@@ -189,7 +189,7 @@ export class ExpressAdapter implements IServer {
   }
 
   private wrapHandler(
-    handler: MiddlewareHandler
+    handler: IMiddlewareHandler
   ): (
     expressReq: Request,
     expressRes: Response,

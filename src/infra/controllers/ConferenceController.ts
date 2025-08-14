@@ -1,41 +1,64 @@
 import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
-import { IRequest } from "../server/interfaces/IRequest";
-import { IResponse } from "../server/interfaces/IResponse";
-import { IServer } from "../server/interfaces/IServer";
+import { IAuthUser } from "../security/tokens/IAuthUser";
+
+import { IRequest } from "../server/middleware/interfaces/IRequest";
+import { IResponse } from "../server/middleware/interfaces/IResponse";
+import { IServer } from "../server/http/interface/IServer";
 import { ConferencesService } from "../service/ConferenceService";
 import { ConferenceSchemas } from "../../schemas/ConferenceSchemas";
-import { IUploadFileOptions } from "../server/interfaces/IUploadFileOptions";
+import { IUploadFileOptions } from "../server/middleware/interfaces/IUploadFileOptions";
 import { IJwtUser } from "../interfaces/IJwtUser";
+import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 
 export class ConferenceController {
   constructor(
     private authTokenManager: IAuthTokenManager,
     private conferenceSchemas: ConferenceSchemas,
-    private conferencesService: ConferencesService
+    private conferencesService: ConferencesService,
+    private authUser: IAuthUser,
+    private middlewareManagerRoutes: IMiddlewareManagerRoutes
   ) {}
 
-  async mountRoutes(server: IServer) {
-    server.registerRouter("post", "/conference", this.addConference.bind(this));
-    server.registerFileUploadRouter(
+  async mountRoutes() {
+    this.middlewareManagerRoutes.registerRouter(
+      "post",
+      "/conference",
+      this.addConference.bind(this)
+    );
+    this.middlewareManagerRoutes.registerFileUploadRouter(
       "post",
       "/send-pdf",
       this.convertPdfToConference.bind(this)
     );
-    server.registerRouter(
+    this.middlewareManagerRoutes.registerRouter(
       "get",
       "/user-conference",
       this.getConferenceByEmail.bind(this)
     );
-    server.registerRouter(
+    this.middlewareManagerRoutes.registerRouter(
       "get",
       "/conference/:idConference",
       this.getConferenceById.bind(this)
     );
-    server.registerRouter(
+    this.middlewareManagerRoutes.registerRouter(
       "put",
       "/conference/update/:idConference",
       this.updateConferenceById.bind(this)
     );
+    this.middlewareManagerRoutes.registerRouterToUserWithTwoFactors(
+      "delete",
+      "/conference/:idConference",
+      this.deleteConference.bind(this)
+    );
+  }
+
+  async deleteConference(req: IRequest, res: IResponse) {
+    const conference = await this.conferencesService.deleteConferenceById(
+      req.params.idConference
+    );
+    if (!conference)
+      return res.status(404).json({ message: "conference not exist" });
+    res.status(200).json({ message: "conference deleted with success" });
   }
 
   async updateConferenceById(req: IRequest, res: IResponse) {

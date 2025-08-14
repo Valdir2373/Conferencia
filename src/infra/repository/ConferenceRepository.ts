@@ -15,6 +15,9 @@ export class ConferenceRepository implements IConferenceRepository {
   ];
 
   constructor(private dataAcess: IDataAccess) {}
+  async deleteConferenceById(id: string): Promise<number> {
+    return await this.dataAcess.remove(this.collectionName, { id: id });
+  }
 
   async updateConference(
     conferenceEntitie: ConferenceEntities

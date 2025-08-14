@@ -1,36 +1,50 @@
-import { IRequest } from "../server/interfaces/IRequest";
-import { IResponse } from "../server/interfaces/IResponse";
-import { IServer } from "../server/interfaces/IServer";
+import { IRequest } from "../server/middleware/interfaces/IRequest";
+import { IResponse } from "../server/middleware/interfaces/IResponse";
+import { IServer } from "../server/http/interface/IServer";
 import { UsersService } from "../service/UsersService";
 import { UserOutputDTO } from "../../application/users/DTO/UserOutput";
 
 import { UsersSchemas } from "../../schemas/UsersSchemas";
 import { IEmailService } from "../interfaces/IEmailService";
 import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
+import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 
 export class UsersControllers {
   constructor(
     private userService: UsersService,
     private usersSchemas: UsersSchemas,
     private email: IEmailService,
-    private token: IAuthTokenManager
+    private token: IAuthTokenManager,
+    private middlewareManagerRoutes: IMiddlewareManagerRoutes
   ) {}
 
-  public async mountRoutes(server: IServer) {
-    server.registerRouter("post", "/register", this.createUser.bind(this));
-    server.registerRouter("get", "/users", this.allUsers.bind(this));
-    server.registerRouter(
+  public async mountRoutes() {
+    this.middlewareManagerRoutes.registerRouter(
+      "post",
+      "/register",
+      this.createUser.bind(this)
+    );
+    this.middlewareManagerRoutes.registerRouter(
+      "get",
+      "/users",
+      this.allUsers.bind(this)
+    );
+    this.middlewareManagerRoutes.registerRouter(
       "delete",
       "/users/delete/:id",
       this.deleteUserID.bind(this)
     );
-    server.registerRouter(
+    this.middlewareManagerRoutes.registerRouter(
       "get",
       "/users/email/:email",
       this.getUserEmail.bind(this)
     );
-    server.registerRouter("get", "/users/id/:id", this.getUserId.bind(this));
-    server.registerRouter(
+    this.middlewareManagerRoutes.registerRouter(
+      "get",
+      "/users/id/:id",
+      this.getUserId.bind(this)
+    );
+    this.middlewareManagerRoutes.registerRouter(
       "put",
       "/users/update",
       this.resetPassword.bind(this)

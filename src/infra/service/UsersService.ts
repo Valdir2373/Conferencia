@@ -105,20 +105,19 @@ export class UsersService {
   }
   async loginUserService(
     userLogin: IUserLogin
-  ): Promise<string | UserOutputDTO> {
+  ): Promise<UserOutputDTO | false> {
     const userOutput = await this.getByEmailUser(userLogin.useremail);
 
-    if (!userOutput) return "User not found";
+    if (!userOutput) return false;
 
     const user = this.convertDtoOuputToInput(
       userOutput,
       userLogin.userpassword
     );
 
-    const login: undefined | UserOutputDTO | string =
-      await this.loginUser.execute(user);
+    const login: false | UserOutputDTO = await this.loginUser.execute(user);
 
-    if (!login) return "User not found";
+    if (!login) return false;
     return login;
   }
   private convertDtoOuputToInput(

@@ -1,8 +1,5 @@
-import { IAuthTokenManager } from "../../security/tokens/IAuthTokenManager";
-import { MiddlewareHandler } from "./IMiddlewareHandler";
+import { IMiddlewareHandler } from "../../middleware/interfaces/IMiddlewareHandler";
 import { Server } from "http";
-import { IRequest } from "./IRequest";
-import { IResponse } from "./IResponse";
 
 export type HttpMethods =
   | "post"
@@ -17,16 +14,16 @@ export interface IServer {
   registerRouter(
     methodHTTP: HttpMethods,
     path: string,
-    ...handlers: MiddlewareHandler[]
-  ): void;
+    ...handlers: IMiddlewareHandler[]
+  ): Promise<void>;
 
   registerFileUploadRouter(
     methodHTTP: HttpMethods,
     path: string,
-    ...handlers: MiddlewareHandler[]
+    ...handlers: IMiddlewareHandler[]
   ): void;
 
-  eachRequestToAllRoutes(...handlers: MiddlewareHandler[]): void;
+  eachRequestToAllRoutes(...handlers: IMiddlewareHandler[]): void;
 
   listen(port: number, callback?: () => void): Server;
   getHttpServer(): Server;

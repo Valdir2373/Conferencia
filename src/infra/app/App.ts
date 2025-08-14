@@ -1,5 +1,5 @@
-import { ExpressAdapter } from "../server/implementation/ExpressAdapter";
-import { IServer } from "../server/interfaces/IServer";
+import { ExpressAdapter } from "../server/http/implementation/ExpressAdapter";
+import { IServer } from "../server/http/interface/IServer";
 import { UsersModule } from "../modules/UsersModule";
 import { ConfigDB } from "../../config/ConfigDB";
 import { IDataAccess } from "../../domain/repository/IDataAccess";
@@ -29,6 +29,11 @@ import { PdfParseImpl } from "../pdf/PdfParserImpl";
 import { ConferenceModules } from "../modules/ConferenceModules";
 import { ConferenceInput } from "../../application/conferences/DTO/ConferenceInput";
 import { ConferenceSchemas } from "../../schemas/ConferenceSchemas";
+import { IAuthUser } from "../security/tokens/IAuthUser";
+import { AuthUser } from "../security/AuthUser";
+import { AuthController } from "../controllers/AuthController";
+import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
+import { MiddlewareAdapter } from "../server/middleware/implementation/MiddlewareAdapter";
 
 export class AppModule {
   private configDB: ConfigDB;
@@ -40,26 +45,34 @@ export class AppModule {
   private pdfReadConvert: IPdfReadConvert;
   private passwordHasher: IPasswordHasher;
   private server: IServer;
+  private middlewareManagerRoutes: IMiddlewareManagerRoutes;
+  private authUser: IAuthUser;
+  private userService: UsersService;
 
   constructor() {
     this.pdfReadConvert = new PdfParseImpl();
     this.configDB = new ConfigDB();
     this.dbHandler = new MongooseHandler(this.configDB.getConfigDB());
     this.dataAccess = new MongooseDataAccess(this.dbHandler);
-
     this.authTokenManager = new JsonwebtokenAuthTokenManager();
     this.email = new NodemailerEmailService(
       createTransport,
       this.authTokenManager
     );
-
     this.createId = new CreateIdImpl();
     this.passwordHasher = new BcryptPasswordHasher();
+    this.userService = this.getUsersService();
+    this.authUser = new AuthUser(this.userService);
 
     this.server = new ExpressAdapter();
+    this.middlewareManagerRoutes = new MiddlewareAdapter(
+      this.server,
+      this.authUser,
+      this.authTokenManager
+    );
   }
 
-  private injectDepenciesOnSchemasUser() {
+  private injectDepenciesOnSchemasUser(): UsersSchemas {
     const validatorUserInputDto = new ZodDTOBuilderAndValidator<UserInputDTO>();
     const validatorUserLogin = new ZodDTOBuilderAndValidator<IUserLogin>();
     return new UsersSchemas(validatorUserInputDto, validatorUserLogin);
@@ -72,24 +85,33 @@ export class AppModule {
 
   private Modules() {
     new ConferenceModules(
-      this.server,
+      this.middlewareManagerRoutes,
       this.dataAccess,
       this.createId,
       this.pdfReadConvert,
       this.authTokenManager,
-      this.injectDepenciesOnSchemasConference()
+      this.injectDepenciesOnSchemasConference(),
+      this.authUser
     );
     new UsersModule(
       this.server,
       this.authTokenManager,
       this.email,
-      this.getUsersService.bind(this),
+      this.userService,
+      this.middlewareManagerRoutes,
       this.injectDepenciesOnSchemasUser
     );
     new AdminModule(
-      this.server,
+      this.middlewareManagerRoutes,
       this.dataAccess,
       this.injectDepenciesOnSchemasUser
+    );
+    new AuthController(
+      this.middlewareManagerRoutes,
+      this.authTokenManager,
+      this.userService,
+      this.email,
+      this.injectDepenciesOnSchemasUser()
     );
   }
 

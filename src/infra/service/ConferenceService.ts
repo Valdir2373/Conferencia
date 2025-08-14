@@ -11,11 +11,13 @@ import { GetConferenceById } from "../../application/conferences/use-cases/GetCo
 import { ConferencesOutput } from "../../application/conferences/DTO/ConferenceOutput";
 import { UpdateConferenceById } from "../../application/conferences/use-cases/UpdateConference";
 import { ConferenceInputDataUpdate } from "../../application/conferences/DTO/ConferenceInputUpdate";
+import { DeleteConferenceById } from "../../application/conferences/use-cases/DeleteConferenceById";
 import { ConferenceEntities } from "../../domain/entities/Conference";
 
 export class ConferencesService {
   private addConference: AddConference;
   private convertPdtToConference: ConvertPdtToConference;
+  private deleteByIdOneConference: DeleteConferenceById;
   private getConferenceByEmailUseCase: GetConferenceByEmail;
   private getConferenceById: GetConferenceById;
   private updateConferenceById: UpdateConferenceById;
@@ -33,6 +35,9 @@ export class ConferencesService {
     );
     this.convertPdtToConference = new ConvertPdtToConference();
     this.getConferenceByEmailUseCase = new GetConferenceByEmail(
+      this.conferenceRepository
+    );
+    this.deleteByIdOneConference = new DeleteConferenceById(
       this.conferenceRepository
     );
     this.getConferenceById = new GetConferenceById(this.conferenceRepository);
@@ -74,5 +79,8 @@ export class ConferencesService {
     console.log(result);
 
     return { message: "ok" };
+  }
+  async deleteConferenceById(id: string): Promise<boolean> {
+    return await this.deleteByIdOneConference.execute(id);
   }
 }

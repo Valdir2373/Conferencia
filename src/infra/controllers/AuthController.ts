@@ -6,10 +6,11 @@ import { IDTOBuilderAndValidator } from "../../shared/validator/IFieldsValidator
 import { IEmailService } from "../interfaces/IEmailService";
 import { IUserLogin } from "../interfaces/IUserLogin";
 import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
-import { IRequest } from "../server/interfaces/IRequest";
-import { IResponse } from "../server/interfaces/IResponse";
-import { IServer } from "../server/interfaces/IServer";
+import { IRequest } from "../server/middleware/interfaces/IRequest";
+import { IResponse } from "../server/middleware/interfaces/IResponse";
+import { IServer } from "../server/http/interface/IServer";
 import { UsersService } from "../service/UsersService";
+import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 
 export class AuthController {
   private schemasUserLogin: IDTOBuilderAndValidator<IUserLogin>;
@@ -17,7 +18,7 @@ export class AuthController {
   private isProduction = process.env.NODE_ENV === "production";
 
   constructor(
-    private server: IServer,
+    private middlewareManagerRoutes: IMiddlewareManagerRoutes,
     private token: IAuthTokenManager,
     private usersService: UsersService,
     private emailService: IEmailService,
@@ -25,27 +26,43 @@ export class AuthController {
   ) {
     this.schemasUserDto = this.usersSchemas.schemasUserDto;
     this.schemasUserLogin = this.usersSchemas.schemasUserLogin;
-
-    this.mountRouters(this.server);
+    this.mountRouters();
   }
-  private mountRouters(server: IServer) {
-    server.registerRouter("post", "/users/login", this.login.bind(this));
+  mountRouters() {
+    this.middlewareManagerRoutes.registerRouter(
+      "post",
+      "/users/login",
+      this.login.bind(this)
+    );
 
-    server.registerRouter("get", "/refreshToken", this.refreshToken.bind(this));
-    server.registerRouter("get", "/verifyUser", this.verifyUser.bind(this));
-    server.registerRouter(
+    this.middlewareManagerRoutes.registerRouter(
+      "get",
+      "/refreshToken",
+      this.refreshToken.bind(this)
+    );
+    this.middlewareManagerRoutes.registerRouter(
+      "get",
+      "/verifyUser",
+      this.verifyUser.bind(this)
+    );
+    this.middlewareManagerRoutes.registerRouter(
       "get",
       "/verifyEmail/:token",
       this.verifyEmail.bind(this)
     );
-    server.registerRouter(
+    this.middlewareManagerRoutes.registerRouter(
       "get",
       "/resend-verification/:email",
       this.resendVerification.bind(this)
     );
-    server.registerRouter("get", "/loggout", this.loggoutUser.bind(this));
-    server.registerRouter("get", "/localizacao", this.getLoc.bind(this));
-    server.eachRequestToAllRoutes(this.refreshToken.bind(this));
+    this.middlewareManagerRoutes.registerRouter(
+      "get",
+      "/loggout",
+      this.loggoutUser.bind(this)
+    );
+    // this.middlewareManagerRoutes.eachRequestToAllRoutes(
+    //   this.refreshToken.bind(this)
+    // );
   }
 
   private async loggoutUser(req: IRequest, res: IResponse) {
@@ -72,17 +89,6 @@ export class AuthController {
       return res
         .status(500)
         .json({ message: "Erro interno do servidor ao fazer logout" });
-    }
-  }
-  private async getLoc(req: IRequest, res: IResponse) {
-    const { lat, lon } = req.query;
-    if (lat && lon) {
-      console.log(`Localização recebida: Latitude ${lat}, Longitude ${lon}`);
-      res.send(
-        `Obrigado! Recebemos sua localização: Latitude ${lat}, Longitude ${lon}.`
-      );
-    } else {
-      res.status(400).send("Parâmetros de latitude e longitude ausentes.");
     }
   }
 
@@ -266,8 +272,8 @@ export class AuthController {
 
       const userOutput = await this.usersService.loginUserService(inputData);
 
-      if (typeof userOutput === "string")
-        return res.status(401).json(userOutput);
+      if (!userOutput)
+        return res.status(401).json({ message: "Access Denied" });
 
       this.cookieDefinerUser(res, userOutput);
       return res.status(200).json(userOutput);

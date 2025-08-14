@@ -1,13 +1,12 @@
-import { IServer } from "../server/interfaces/IServer";
+import { IServer } from "../server/http/interface/IServer";
 import { UsersService } from "../service/UsersService";
 import { UsersControllers } from "../controllers/UserController";
 import { UsersSchemas } from "../../schemas/UsersSchemas";
 import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
 import { IEmailService } from "../interfaces/IEmailService";
-import { AuthController } from "../controllers/AuthController";
+import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 
 export class UsersModule {
-  private usersService: UsersService;
   private usersController: UsersControllers;
   private usersSchemas: UsersSchemas;
 
@@ -15,27 +14,20 @@ export class UsersModule {
     private server: IServer,
     private authTokenManager: IAuthTokenManager,
     private email: IEmailService,
-    private getUsersService: () => UsersService,
+    private usersService: UsersService,
+    private middlewareManagerRoutes: IMiddlewareManagerRoutes,
     private getUsersSchemas: () => UsersSchemas
   ) {
     this.usersSchemas = this.getUsersSchemas();
-
-    this.usersService = this.getUsersService();
 
     this.usersController = new UsersControllers(
       this.usersService,
       this.usersSchemas,
       this.email,
-      this.authTokenManager
+      this.authTokenManager,
+      this.middlewareManagerRoutes
     );
 
-    this.usersController.mountRoutes(this.server);
-    const authController = new AuthController(
-      this.server,
-      this.authTokenManager,
-      this.usersService,
-      this.email,
-      this.usersSchemas
-    );
+    this.usersController.mountRoutes();
   }
 }

@@ -1,3 +1,4 @@
+import { IJwtUser } from "../../../interfaces/IJwtUser";
 import { IFile } from "./IFile";
 
 export interface IRequest {
@@ -7,7 +8,7 @@ export interface IRequest {
   headers: any;
   method: string;
   path: string;
-  userPayload?: any;
+  userPayload?: IJwtUser;
   cookies?: { [key: string]: string };
   file: (fieldName: string) => IFile | undefined;
 }

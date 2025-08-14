@@ -1,3 +1,4 @@
+import { DeleteConferenceById } from "../../application/conferences/use-cases/DeleteConferenceById";
 import { ConferenceEntities } from "../entities/Conference";
 
 export interface IConferenceRepository {
@@ -11,4 +12,5 @@ export interface IConferenceRepository {
   updateConference(
     conferenceEntities: ConferenceEntities
   ): Promise<ConferenceEntities | undefined>;
+  deleteConferenceById(id: string): Promise<number>;
 }

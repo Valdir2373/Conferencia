@@ -1,17 +1,19 @@
-import { UserInputDTO } from "../../application/users/DTO/UserInput";
-import { UsersSchemas } from "../../schemas/UsersSchemas";
-import { IRequest } from "../server/interfaces/IRequest";
-import { IResponse } from "../server/interfaces/IResponse";
-import { IServer } from "../server/interfaces/IServer";
+import { IRequest } from "../server/middleware/interfaces/IRequest";
+import { IResponse } from "../server/middleware/interfaces/IResponse";
 import { AdminService } from "../service/AdminService";
+import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 
 export class AdminController {
   constructor(
     private adminService: AdminService,
-    private userSchemas: UsersSchemas
+    private server: IMiddlewareManagerRoutes
   ) {}
-  public mountRouter(server: IServer) {
-    server.registerRouter("post", "/createAdmin", this.createAdmin.bind(this));
+  mountRouter() {
+    this.server.registerRouter(
+      "post",
+      "/createAdmin",
+      this.createAdmin.bind(this)
+    );
   }
   private async createAdmin(req: IRequest, res: IResponse) {
     const { email } = req.body;
