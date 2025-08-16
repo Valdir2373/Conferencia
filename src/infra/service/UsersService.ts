@@ -5,31 +5,33 @@ import { DeleteByIdUser } from "../../application/users/use-case/DeleteByIdUser"
 import { GetAllUsers } from "../../application/users/use-case/GetAllUsers";
 import { GetUserByEmail } from "../../application/users/use-case/GetUserByEmail";
 import { GetUserById } from "../../application/users/use-case/GetUserById";
-import { UpdateUserByEmail } from "../../application/users/use-case/UpdateUser";
+import { UpdateUserById } from "../../application/users/use-case/UpdateUserById";
 import { UserCreate } from "../../application/users/use-case/UserCreate";
 import { LoginUser } from "../../application/users/use-case/LoginUser";
-import { IPasswordHasher } from "../../domain/services/IPasswordHasher";
+import { IPasswordHasher } from "../security/IPasswordHasher";
 import { ICreateId } from "../../domain/services/ICreateId";
-import { VerifyUserByEmail } from "../../application/users/use-case/VerifyUserByEmail";
 import { UserAlreadyExistsError } from "../../shared/error/UserAlreadyExistsError";
-import { IUserLogin } from "../interfaces/IUserLogin";
+import { IUserLoginDto } from "../../application/users/DTO/IUserLoginDto";
 import { AuthenticateUserByEmail } from "../../application/users/use-case/AuthenticateUserByEmail";
 import { CreateAdmin } from "../../application/users/use-case/CreateAdmin";
 import { VerifyIfUserAdmin } from "../../application/users/use-case/VerifyIfUserAdmin";
+import { UserOutputToAdminDTO } from "../../application/users/DTO/UserOutputToAdminDTO";
+import { IUserToUpdateDTO } from "../../application/users/DTO/IUserToUpdateDTO";
+import { ResetPasswordById } from "../../application/users/use-case/ResetPassword";
 
 export class UsersService {
   private usersRepository: IUserRepository;
+  private resetPasswordById: ResetPasswordById;
   private userCreate: UserCreate;
   private getAllUsersUseCase: GetAllUsers;
   private deleteByIdUser: DeleteByIdUser;
   private getUserByEmail: GetUserByEmail;
   private getUserById: GetUserById;
-  private updateUserByEmailUseCase: UpdateUserByEmail;
+  private updateUserByIdUseCase: UpdateUserById;
   private loginUser: LoginUser;
-  private verifyUserByEmailUseCase: VerifyUserByEmail;
   private createAdmin: CreateAdmin;
   private verifyIfUserAdmin: VerifyIfUserAdmin;
-  authenticateUserByEmail: AuthenticateUserByEmail;
+  private authenticateUserByEmail: AuthenticateUserByEmail;
 
   constructor(
     readonly UsersRepository: IUserRepository,
@@ -46,19 +48,31 @@ export class UsersService {
     this.deleteByIdUser = new DeleteByIdUser(this.UsersRepository);
     this.getUserByEmail = new GetUserByEmail(this.usersRepository);
     this.getUserById = new GetUserById(this.usersRepository);
-    this.updateUserByEmailUseCase = new UpdateUserByEmail(
+    this.updateUserByIdUseCase = new UpdateUserById(
       this.usersRepository,
       this.passwordHasher
     );
-    this.verifyUserByEmailUseCase = new VerifyUserByEmail(this.usersRepository);
     this.authenticateUserByEmail = new AuthenticateUserByEmail(
       this.usersRepository
     );
     this.loginUser = new LoginUser(this.usersRepository, this.passwordHasher);
     this.createAdmin = new CreateAdmin(this.usersRepository);
     this.verifyIfUserAdmin = new VerifyIfUserAdmin(this.usersRepository);
+    this.resetPasswordById = new ResetPasswordById(
+      this.usersRepository,
+      this.passwordHasher
+    );
   }
 
+  async resetPasswordByEmail(email: string, password: string) {
+    const user = await this.getUserByEmail.execute(email);
+    if (!user) throw new Error("user not found");
+    const passwordReseted = await this.resetPasswordById.execute(
+      user.id,
+      password
+    );
+    return passwordReseted;
+  }
   async createNewUser(user: UserInputDTO): Promise<UserOutputDTO> {
     try {
       if (await this.getByEmailUser(user.useremail))
@@ -91,17 +105,64 @@ export class UsersService {
     }
   }
   async sendVerificationEmail(email: string) {}
-  async getAllUsers(): Promise<UserOutputDTO[] | undefined> {
-    return this.getAllUsersUseCase.execute();
+
+  async adminUpdateUserById(userToUpdateDTO: IUserToUpdateDTO) {
+    try {
+      const userNow = await this.getUserById.execute(userToUpdateDTO.id);
+
+      if (!userNow) throw new Error("id not exist");
+      if (userToUpdateDTO.email) {
+        const verifyIfExistUserWhithEmail = await this.getByEmailUser(
+          userToUpdateDTO.email
+        );
+        if (verifyIfExistUserWhithEmail) throw new Error("Email already exist");
+      }
+      const userUpdated: UserInputDTO = {
+        id: userToUpdateDTO.id,
+        useremail: userToUpdateDTO.email || userNow.email,
+        username: userToUpdateDTO.name || userNow.username,
+        userpassword: userToUpdateDTO.password || userNow.password,
+      };
+
+      const result = await this.updateUserById(userUpdated);
+
+      if (!result) throw new Error("undefined user updated");
+      return result;
+    } catch (e: any) {
+      if (e.message === "id not exist") return console.log("id not exist");
+
+      throw e;
+    }
+  }
+
+  async getAllUsers(): Promise<UserOutputToAdminDTO[] | undefined> {
+    return await this.getAllUsersUseCase.execute();
   }
   async deleteUser(id: string): Promise<any> {
     return await this.deleteByIdUser.execute(id);
   }
   async getByIdUser(id: string): Promise<UserOutputDTO | undefined> {
-    return await this.getUserById.execute(id);
+    const user = await this.getUserById.execute(id);
+    if (!user) return;
+    const userById: UserOutputDTO = {
+      username: user.username,
+      email: user.email,
+      id: user.id,
+    };
+    return userById;
   }
   async getByEmailUser(email: string): Promise<UserOutputDTO | undefined> {
-    return await this.getUserByEmail.execute(email);
+    try {
+      const userEntities = await this.getUserByEmail.execute(email);
+      const userByEmail: UserOutputDTO = {
+        username: userEntities.username,
+        email: userEntities.email,
+        id: userEntities.id,
+      };
+      return userByEmail;
+    } catch (e: any) {
+      if (e.message === "user not found") return;
+    }
   }
 
   async userToAdmin(
@@ -121,41 +182,31 @@ export class UsersService {
     return await this.verifyIfUserAdmin.execute(email);
   }
 
-  async updateUserByEmail(
-    user: UserInputDTO
-  ): Promise<UserOutputDTO | undefined> {
-    return await this.updateUserByEmailUseCase.execute(user);
+  async updateUserById(user: UserInputDTO): Promise<UserOutputDTO | undefined> {
+    return await this.updateUserByIdUseCase.execute(user);
   }
   async loginUserService(
-    userLogin: IUserLogin
+    userLogin: IUserLoginDto
   ): Promise<UserOutputDTO | false> {
     const userOutput = await this.getByEmailUser(userLogin.useremail);
-
     if (!userOutput) return false;
-
-    const user = this.convertDtoOuputToInput(
-      userOutput,
-      userLogin.userpassword
+    const user = await this.getUserByEmail.execute(userOutput.email);
+    const userInput: UserInputDTO = {
+      id: user.id,
+      useremail: user.email,
+      username: user.username,
+      userpassword: userLogin.userpassword,
+    };
+    const login: false | UserOutputDTO = await this.loginUser.execute(
+      userInput
     );
-
-    const login: false | UserOutputDTO = await this.loginUser.execute(user);
-
     if (!login) return false;
     return login;
   }
-  private convertDtoOuputToInput(
-    userOutput: UserOutputDTO,
-    pass: string
-  ): UserInputDTO {
-    const user: UserInputDTO = {
-      useremail: userOutput.email,
-      username: userOutput.username,
-      userpassword: pass,
-    };
-    return user;
-  }
+
   public async verifyUserByEmail(email: string): Promise<boolean> {
-    return await this.verifyUserByEmailUseCase.execute(email);
+    const user = await this.getUserByEmail.execute(email);
+    return user ? true : false;
   }
   public async authenticateUser(email: string): Promise<boolean> {
     return await this.authenticateUserByEmail.execute(email);

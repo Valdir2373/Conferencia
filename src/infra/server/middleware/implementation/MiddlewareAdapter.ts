@@ -1,11 +1,11 @@
 import { HttpMethods, IServer } from "../../http/interface/IServer";
 import { IMiddlewareManagerRoutes } from "../interfaces/IMiddlewareManagerRoutes";
 import { IMiddlewareHandler } from "../interfaces/IMiddlewareHandler";
-import { IAuthUser } from "../../../security/interfaces/IAuthUser";
-import { IAuthTokenManager } from "../../../security/interfaces/IAuthTokenManager";
+import { IAuthUser } from "../../../security/auth/IAuthUser";
+import { IAuthTokenManager } from "../../../security/tokens/IAuthTokenManager";
 import { IRequest } from "../interfaces/IRequest";
 import { IResponse } from "../interfaces/IResponse";
-import { IJwtUser } from "../../../security/interfaces/IJwtUser";
+import { IJwtUser } from "../../../security/tokens/IJwtUser";
 
 export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
   constructor(
@@ -13,6 +13,7 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     private authUser: IAuthUser,
     private authTokenManager: IAuthTokenManager
   ) {}
+
   registerRouterToAdmin(
     methodHTTP: HttpMethods,
     path: string,
@@ -21,7 +22,6 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     this.server.registerRouter(
       methodHTTP,
       path,
-
       async (req, res, next) => {
         this.authenticationToAdmin(req, res, next);
       },
@@ -42,7 +42,6 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       ...handlers
     );
   }
-
   registerRouter(
     methodHTTP: HttpMethods,
     path: string,
@@ -50,7 +49,6 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
   ): void {
     this.server.registerRouter(methodHTTP, path, ...handlers);
   }
-
   registerFileUploadRouter(
     methodHTTP: HttpMethods,
     path: string,
@@ -58,20 +56,45 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
   ): void {
     this.server.registerFileUploadRouter(methodHTTP, path, ...handlers);
   }
-
   registerRouterToUser(
     methodHTTP: HttpMethods,
     path: string,
     ...handlers: IMiddlewareHandler[]
-  ): void {
+  ) {
+    const authenticationAndHandlerWrapper = async (
+      req: IRequest,
+      res: IResponse,
+      next: () => void
+    ) => {
+      let nextCalled = false;
+      const safeNext = () => {
+        nextCalled = true;
+      };
+
+      await this.authenticationMiddleware(req, res, safeNext);
+
+      if (res.headersSent) {
+        return;
+      }
+
+      if (!nextCalled) {
+        return;
+      }
+
+      for (const handler of handlers) {
+        if (res.headersSent) {
+          return;
+        }
+        await handler(req, res, () => {});
+      }
+    };
+
     this.server.registerRouter(
       methodHTTP,
       path,
-      this.authenticationMiddleware.bind(this),
-      ...handlers
+      authenticationAndHandlerWrapper
     );
   }
-
   registerRouterAuthenticTokenToCreate(
     methodHTTP: HttpMethods,
     path: string,
@@ -84,7 +107,6 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       ...handlers
     );
   }
-
   registerRouterToUserWithTwoFactors(
     methodHTTP: HttpMethods,
     path: string,
@@ -103,6 +125,21 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     );
   }
 
+  registerRouterToAdminWithTwoFactors(
+    methodHTTP: HttpMethods,
+    path: string,
+    ...handlers: IMiddlewareHandler[]
+  ): void {
+    this.registerRouterToAdmin(
+      methodHTTP,
+      path,
+      async (req, res, next) => {
+        req.userPayload = await this.getUserByCookie(req, res);
+        await this.authenticationOfPassword(req, res, next);
+      },
+      ...handlers
+    );
+  }
   private authenticationOfPassword: IMiddlewareHandler = async (
     req,
     res,
@@ -118,14 +155,15 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
         await this.authUser.verifyPasswordFromUserByEmail(email, password);
 
       if (!verificationOfPassword)
-        return res.status(401).json({ message: "access denied" });
+        return res.status(401).json({ message: "Senha incorreta" });
 
       next();
     } catch (error: any) {
+      console.error(error);
+
       return res.status(500).json({ message: "Ocorreu um erro interno" });
     }
   };
-
   private authenticationMiddleware: IMiddlewareHandler = async (
     req,
     res,
@@ -134,22 +172,25 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     try {
       const user = await this.getUserByCookie(req, res);
       req.userPayload = user;
-
-      next();
+      return next();
     } catch (error: any) {
+      if (
+        res.headersSent &&
+        error.message === "cookies faltando na requisição"
+      ) {
+        return;
+      }
       return res.status(401).json({ message: "unauthorized" });
     }
   };
-
   private authenticationFromIdTokenToCreate: IMiddlewareHandler = async (
     req,
     res,
     next
   ) => {
     try {
-      const idTokenCreate = req.params.idTokenCreate;
       const result = await this.authTokenManager.verifyTokenTimerSet(
-        idTokenCreate
+        req.params.idToken
       );
       if (result.status) return next();
 
@@ -158,7 +199,6 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       return res.status(401).json({ message: "unauthorized" });
     }
   };
-
   private authenticationToAdmin: IMiddlewareHandler = async (
     req,
     res,
@@ -167,14 +207,20 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     try {
       const user = await this.getUserByCookie(req, res);
       req.userPayload = user;
-      console.log(user);
-
       const admin = await this.authUser.verifyUserAdminByEmail(user.email);
       if (admin) next();
-      return res.status(401).json({ message: "unauthorized" });
-    } catch (error: any) {}
+    } catch (error: any) {
+      if (
+        (res.headersSent &&
+          error.message === "cookies faltando na requisição") ||
+        error.message === "user not admin" ||
+        error.message === "usuario não autorizado"
+      ) {
+        return;
+      }
+      // return res.status(401).json({ message: "unauthorized" });
+    }
   };
-
   private async getUserByCookie(
     req: IRequest,
     res: IResponse

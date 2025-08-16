@@ -11,6 +11,7 @@ export class UserRepository implements IUserRepository {
     "email",
     "password",
     "verification",
+    "adm",
     "created_at",
     "updated_at",
   ];

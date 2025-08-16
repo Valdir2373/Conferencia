@@ -24,7 +24,6 @@ export class UpdateConferenceById {
       conferenceToUpdate
     );
     if (!result) throw new Error("result not defined");
-    console.log(result);
 
     return result;
   }

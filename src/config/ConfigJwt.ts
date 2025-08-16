@@ -1,4 +1,4 @@
-import { ConfigEnv } from "../../config/Config.env";
+import { ConfigEnv } from "./Config.env";
 
 export class ConfigJwt {
   configEnv: ConfigEnv;

@@ -3,7 +3,7 @@ import { ConferenceInput } from "../../application/conferences/DTO/ConferenceInp
 import { AddConference } from "../../application/conferences/use-cases/AddConference";
 import { ICreateId } from "../../domain/services/ICreateId";
 import { ConferenceRepository } from "../repository/ConferenceRepository";
-import { IPdfReadConvert } from "../../domain/services/IPdfReadConvert";
+import { IPdfReadConvert } from "../pdf/IPdfReadConvert";
 import { ConvertPdtToConference } from "../../application/conferences/use-cases/ConvertPdtToConference";
 import { PdfFileMetadata } from "../../application/conferences/DTO/PdfFileMetadata";
 import { GetConferenceByEmail } from "../../application/conferences/use-cases/GetConferenceByEmail";
@@ -12,14 +12,13 @@ import { ConferencesOutput } from "../../application/conferences/DTO/ConferenceO
 import { UpdateConferenceById } from "../../application/conferences/use-cases/UpdateConference";
 import { ConferenceInputDataUpdate } from "../../application/conferences/DTO/ConferenceInputUpdate";
 import { DeleteConferenceById } from "../../application/conferences/use-cases/DeleteConferenceById";
-import { ConferenceEntities } from "../../domain/entities/Conference";
 
 export class ConferencesService {
   private addConference: AddConference;
   private convertPdtToConference: ConvertPdtToConference;
   private deleteByIdOneConference: DeleteConferenceById;
   private getConferenceByEmailUseCase: GetConferenceByEmail;
-  private getConferenceById: GetConferenceById;
+  private getConferenceByIdUseCase: GetConferenceById;
   private updateConferenceById: UpdateConferenceById;
   constructor(
     private conferenceRepository: ConferenceRepository,
@@ -40,11 +39,15 @@ export class ConferencesService {
     this.deleteByIdOneConference = new DeleteConferenceById(
       this.conferenceRepository
     );
-    this.getConferenceById = new GetConferenceById(this.conferenceRepository);
+    this.getConferenceByIdUseCase = new GetConferenceById(
+      this.conferenceRepository
+    );
+  }
+  async getConferenceById(id: string) {
+    return await this.getConferenceByIdUseCase.execute(id);
   }
   async createConference(conferenceInput: ConferenceInput) {
     const conference = await this.addConference.execute(conferenceInput);
-    console.log(conference);
     return conference;
   }
   async convertPdf(inputData: { email: string; pdf: PdfFileMetadata }) {
@@ -52,7 +55,7 @@ export class ConferencesService {
       const txt = await this.convertPdtToConference.execute(inputData.pdf);
       return txt;
     } catch (r) {
-      console.log(r);
+      console.error(r);
     }
   }
   async getConferencesByEmail(
@@ -75,8 +78,7 @@ export class ConferencesService {
     conference: ConferenceInputDataUpdate,
     email: string
   ) {
-    const result = await this.updateConferenceById.execute(conference, email);
-    console.log(result);
+    await this.updateConferenceById.execute(conference, email);
 
     return { message: "ok" };
   }

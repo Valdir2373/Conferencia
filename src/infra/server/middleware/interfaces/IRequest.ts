@@ -1,4 +1,4 @@
-import { IJwtUser } from "../../../security/interfaces/IJwtUser";
+import { IJwtUser } from "../../../security/tokens/IJwtUser";
 import { IFile } from "./IFile";
 
 export interface IRequest {

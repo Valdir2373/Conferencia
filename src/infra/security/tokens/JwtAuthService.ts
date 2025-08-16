@@ -1,9 +1,6 @@
-import {
-  IAuthTokenManager,
-  TokenGenerationOptions,
-} from "./interfaces/IAuthTokenManager";
+import { IAuthTokenManager, TokenGenerationOptions } from "./IAuthTokenManager";
 import jwt, { SignOptions } from "jsonwebtoken";
-import { ConfigJwt } from "./ConfigJwt";
+import { ConfigJwt } from "../../../config/ConfigJwt";
 import { v4 as uuidv4 } from "uuid";
 import { createClient } from "redis";
 
@@ -120,7 +117,6 @@ export class JsonwebtokenAuthTokenManager implements IAuthTokenManager {
 
       if (typeof decoded === "object" && decoded !== null && decoded.jti) {
         const isRevoked = await this.redisClient.exists(decoded.jti);
-        console.log(isRevoked);
 
         if (isRevoked) {
           return { message: "Token revogado.", status: false } as T;

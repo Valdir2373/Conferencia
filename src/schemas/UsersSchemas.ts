@@ -1,12 +1,12 @@
 import { UserInputDTO } from "../application/users/DTO/UserInput";
-import { IUserLogin } from "../infra/interfaces/IUserLogin";
+import { IUserLoginDto } from "../application/users/DTO/IUserLoginDto";
 import { ValidationError } from "../shared/error/ValidationError";
 import { IDTOBuilderAndValidator } from "../shared/validator/IFieldsValidator";
 
 export class UsersSchemas {
   constructor(
     private userDtoSchemas: IDTOBuilderAndValidator<UserInputDTO>,
-    private userLoginSchemas: IDTOBuilderAndValidator<IUserLogin>
+    private userLoginSchemas: IDTOBuilderAndValidator<IUserLoginDto>
   ) {}
   public get schemasUserDto() {
     return this.userDtoSchemas.defineSchema(

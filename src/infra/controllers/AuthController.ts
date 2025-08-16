@@ -3,17 +3,16 @@ import { UserOutputDTO } from "../../application/users/DTO/UserOutput";
 import { UsersSchemas } from "../../schemas/UsersSchemas";
 import { ValidationError } from "../../shared/error/ValidationError";
 import { IDTOBuilderAndValidator } from "../../shared/validator/IFieldsValidator";
-import { IEmailService } from "../interfaces/IEmailService";
-import { IUserLogin } from "../interfaces/IUserLogin";
-import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
+import { IEmailService } from "../email/IEmailService";
+import { IUserLoginDto } from "../../application/users/DTO/IUserLoginDto";
+import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
 import { IRequest } from "../server/middleware/interfaces/IRequest";
 import { IResponse } from "../server/middleware/interfaces/IResponse";
-import { IServer } from "../server/http/interface/IServer";
 import { UsersService } from "../service/UsersService";
 import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 
 export class AuthController {
-  private schemasUserLogin: IDTOBuilderAndValidator<IUserLogin>;
+  private schemasUserLogin: IDTOBuilderAndValidator<IUserLoginDto>;
   private schemasUserDto: IDTOBuilderAndValidator<UserInputDTO>;
   private isProduction = process.env.NODE_ENV === "production";
 
@@ -31,13 +30,19 @@ export class AuthController {
   mountRouters() {
     this.middlewareManagerRoutes.registerRouterAuthenticTokenToCreate(
       "get",
-      "/verify/:idTokenCreate",
+      "/verify/:idToken",
       this.verifedWithSuccess.bind(this)
     );
     this.middlewareManagerRoutes.registerRouter(
       "post",
       "/users/login",
       this.login.bind(this)
+    );
+
+    this.middlewareManagerRoutes.registerRouter(
+      "post",
+      "/verify-token/password",
+      this.verifyTokenPassword.bind(this)
     );
 
     this.middlewareManagerRoutes.registerRouter(
@@ -65,6 +70,13 @@ export class AuthController {
       "/loggout",
       this.loggoutUser.bind(this)
     );
+  }
+
+  private async verifyTokenPassword(req: IRequest, res: IResponse) {
+    const token = await this.token.verifyTokenTimerSet(req.body.tokenPassword);
+    return token.status
+      ? res.status(200).json({ message: "authorized" })
+      : res.status(401).json({ message: "unauthorized" });
   }
 
   private async verifedWithSuccess(req: IRequest, res: IResponse) {
@@ -101,6 +113,8 @@ export class AuthController {
   private async verifyEmail(req: IRequest, res: IResponse) {
     const { token } = req.params;
     const response = await this.token.verifyTokenTimerSet(token);
+    console.log(response);
+
     if (!response.status)
       return res.status(401).json({ message: "unauthorized" });
     const { email } = response.jwt;
@@ -253,10 +267,8 @@ export class AuthController {
     const tokenAcess = cookie.tokenAcess;
     try {
       const result = await this.token.verifyToken(tokenAcess);
-      if (result.status) {
-        console.log("verifyCookieToAcess: tokenAcess válido.");
-        return result;
-      } else {
+      if (result.status) return result;
+      else {
         console.log("verifyCookieToAcess: tokenAcess inválido ou expirado.");
         return { status: false, jwt: null };
       }
@@ -290,7 +302,7 @@ export class AuthController {
     }
   }
 
-  private verifyInputUserLogin(user: IUserLogin, res: IResponse): boolean {
+  private verifyInputUserLogin(user: IUserLoginDto, res: IResponse): boolean {
     try {
       this.schemasUserLogin.validate(user);
       return true;
@@ -309,8 +321,6 @@ export class AuthController {
   }
 
   cookieDefinerUser(res: IResponse, userOutput: UserOutputDTO) {
-    console.log(this.isProduction);
-
     res.cookie("refreshToken", this.token.generateRefreshToken(userOutput), {
       httpOnly: true,
       secure: this.isProduction,

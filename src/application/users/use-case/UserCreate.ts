@@ -2,7 +2,7 @@ import { UserEntities } from "../../../domain/entities/User";
 import { IUserRepository } from "../../../domain/repository/IUserRepository";
 import { UserInputDTO } from "../DTO/UserInput";
 import { UserOutputDTO } from "../DTO/UserOutput";
-import { IPasswordHasher } from "../../../domain/services/IPasswordHasher";
+import { IPasswordHasher } from "../../../infra/security/IPasswordHasher";
 import { ICreateId } from "../../../domain/services/ICreateId";
 
 export class UserCreate {

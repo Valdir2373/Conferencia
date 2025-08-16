@@ -3,33 +3,32 @@ import { IServer } from "../server/http/interface/IServer";
 import { UsersModule } from "../modules/UsersModule";
 import { ConfigDB } from "../../config/ConfigDB";
 import { IDataAccess } from "../../domain/repository/IDataAccess";
-import { JsonwebtokenAuthTokenManager } from "../security/JwtAuthService";
+import { JsonwebtokenAuthTokenManager } from "../security/tokens/JwtAuthService";
 import { ZodDTOBuilderAndValidator } from "../../shared/validator/ZodDTOBuilderAndValidatorImpl";
 import { UserInputDTO } from "../../application/users/DTO/UserInput";
-import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
+import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
 import { UsersSchemas } from "../../schemas/UsersSchemas";
-import { IUserLogin } from "../interfaces/IUserLogin";
+import { IUserLoginDto } from "../../application/users/DTO/IUserLoginDto";
 import { IDatabaseHandler } from "../../domain/repository/IDatabaseHandler";
 import { MongooseHandler } from "../database/MongooseHandler";
 import { MongooseDataAccess } from "../database/MoongoseDataAcess";
 import mongoose from "mongoose";
 import { NodemailerEmailService } from "../email/NodemailerEmailService";
 import { createTransport } from "nodemailer";
-import { IEmailService } from "../interfaces/IEmailService";
-import { AdminModule } from "../modules/AdminModule";
+import { IEmailService } from "../email/IEmailService";
 import { Server as HttpServer } from "http";
 import { CreateIdImpl } from "../../shared/utils/CreateId";
 import { ICreateId } from "../../domain/services/ICreateId";
-import { IPasswordHasher } from "../../domain/services/IPasswordHasher";
+import { IPasswordHasher } from "../security/IPasswordHasher";
 import { BcryptPasswordHasher } from "../security/BcryptPasswordHasher";
 import { UsersService } from "../service/UsersService";
 import { UserRepository } from "../repository/UsersRepository";
-import { IPdfReadConvert } from "../../domain/services/IPdfReadConvert";
+import { IPdfReadConvert } from "../pdf/IPdfReadConvert";
 import { PdfParseImpl } from "../pdf/PdfParserImpl";
 import { ConferenceModules } from "../modules/ConferenceModules";
 import { ConferenceInput } from "../../application/conferences/DTO/ConferenceInput";
 import { ConferenceSchemas } from "../../schemas/ConferenceSchemas";
-import { IAuthUser } from "../security/interfaces/IAuthUser";
+import { IAuthUser } from "../security/auth/IAuthUser";
 import { AuthUser } from "../security/auth/AuthUser";
 import { AuthController } from "../controllers/AuthController";
 import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
@@ -74,7 +73,7 @@ export class AppModule {
 
   private injectDepenciesOnSchemasUser(): UsersSchemas {
     const validatorUserInputDto = new ZodDTOBuilderAndValidator<UserInputDTO>();
-    const validatorUserLogin = new ZodDTOBuilderAndValidator<IUserLogin>();
+    const validatorUserLogin = new ZodDTOBuilderAndValidator<IUserLoginDto>();
     return new UsersSchemas(validatorUserInputDto, validatorUserLogin);
   }
   private injectDepenciesOnSchemasConference() {
@@ -94,19 +93,11 @@ export class AppModule {
       this.authUser
     );
     new UsersModule(
-      this.server,
       this.authTokenManager,
       this.email,
       this.userService,
       this.middlewareManagerRoutes,
-      this.injectDepenciesOnSchemasUser
-    );
-    new AdminModule(
-      this.middlewareManagerRoutes,
-      this.authTokenManager,
-      this.dataAccess,
-      this.userService,
-      this.injectDepenciesOnSchemasUser
+      this.injectDepenciesOnSchemasUser()
     );
     new AuthController(
       this.middlewareManagerRoutes,

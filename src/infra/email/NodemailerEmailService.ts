@@ -1,8 +1,8 @@
 import { Transporter } from "nodemailer";
-import { IEmailService } from "../interfaces/IEmailService";
+import { IEmailService } from "./IEmailService";
 import { ConfigEmail } from "../../config/ConfigEmail";
 import { UserOutputDTO } from "../../application/users/DTO/UserOutput";
-import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
+import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
 export type TransportFactory = (options: any) => Transporter;
 
 export class NodemailerEmailService implements IEmailService {
@@ -14,6 +14,18 @@ export class NodemailerEmailService implements IEmailService {
   ) {
     this.configEmail = new ConfigEmail();
   }
+  async sendLinkResetPassword(userOutput: UserOutputDTO): Promise<any> {
+    const link = this.genarateLinkResetPassword(userOutput);
+
+    const message = "Para resetar sua senha prossiga no link abaixo";
+
+    return await this.sendLinkVerificationEmail(
+      userOutput.email,
+      link,
+      25,
+      message
+    );
+  }
   public getTransportToSendEmail(): any {
     const transporterConfig = this.configEmail.getTransporter;
     const transporter = this.create(transporterConfig);
@@ -22,10 +34,15 @@ export class NodemailerEmailService implements IEmailService {
   public async sendLinkVerificationEmail(
     email: string,
     verificationCode: string,
-    tempo: number
+    tempo: number,
+    messageToEmail: string
   ): Promise<any> {
     try {
-      const htmlContent = this.getHtmlBody(verificationCode, tempo);
+      const htmlContent = this.getHtmlBody(
+        verificationCode,
+        tempo,
+        messageToEmail
+      );
 
       await this.getTransportToSendEmail().sendMail({
         from: process.env.EMAIL_FROM,
@@ -47,7 +64,7 @@ export class NodemailerEmailService implements IEmailService {
     }
   }
 
-  public getHtmlBody(link: string, tempo: number): string {
+  private getHtmlBody(link: string, tempo: number, message: string): string {
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -123,7 +140,7 @@ export class NodemailerEmailService implements IEmailService {
     </div>
     <div class="content">
       <p>Olá,</p>
-      <p>Recebemos uma solicitação de confirmação para sua conta. Por favor, use o link de verificação, abaixo para prosseguir:</p>
+      <p>${message}</p>
       <div class="code-box">
         <a href="${link}">link de verificação</a> </div>
       <p>Este link de verificação é válido por ${tempo} minutos. Se você não solicitou este link de verificação, por favor, ignore este e-mail.</p>
@@ -140,12 +157,28 @@ export class NodemailerEmailService implements IEmailService {
   public async sendEmailVerificationUser(
     userOutputDTO: UserOutputDTO
   ): Promise<any> {
-    const link = this.genarateLink(userOutputDTO);
+    const link = this.genarateLinkVerificationUser(userOutputDTO);
 
-    return await this.sendLinkVerificationEmail(userOutputDTO.email, link, 5);
+    const message =
+      "Recebemos uma solicitação de confirmação para sua conta. Por favor, use o link de verificação, abaixo para prosseguir:";
+
+    return await this.sendLinkVerificationEmail(
+      userOutputDTO.email,
+      link,
+      15,
+      message
+    );
   }
-  private genarateLink(userOutputDTO: UserOutputDTO) {
-    return `http:/localhost:3000/verifyEmail/${this.token.generateTokenTimerSet(
+  private genarateLinkVerificationUser(userOutputDTO: UserOutputDTO) {
+    return `http:/localhost:5173/verifyEmail/${this.token.generateTokenTimerSet(
+      {
+        email: userOutputDTO.email,
+      },
+      "5m"
+    )}`;
+  }
+  private genarateLinkResetPassword(userOutputDTO: UserOutputDTO) {
+    return `http:/localhost:5173/reset-password/${this.token.generateTokenTimerSet(
       {
         email: userOutputDTO.email,
       },

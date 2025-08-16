@@ -1,5 +1,6 @@
+import { IUserLoginDto } from "../../../application/users/DTO/IUserLoginDto";
 import { UsersService } from "../../service/UsersService";
-import { IAuthUser } from "../interfaces/IAuthUser";
+import { IAuthUser } from "./IAuthUser";
 
 export class AuthUser implements IAuthUser {
   constructor(private userService: UsersService) {}
@@ -11,17 +12,15 @@ export class AuthUser implements IAuthUser {
       throw e;
     }
   }
-  login(email: string, password: string): Promise<void> {
-    throw new Error("Method not implemented.");
-  }
   async verifyPasswordFromUserByEmail(
     emailUser: string,
     password: string
   ): Promise<boolean> {
-    const user = await this.userService.loginUserService({
+    const userLogin: IUserLoginDto = {
       useremail: emailUser,
       userpassword: password,
-    });
+    };
+    const user = await this.userService.loginUserService(userLogin);
     return user ? true : false;
   }
 }

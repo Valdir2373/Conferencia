@@ -234,6 +234,7 @@ export class ExpressAdapter implements IServer {
           return ires;
         },
         redirect: (url: string) => expressRes.redirect(url),
+        headersSent: expressRes.headersSent,
       };
 
       const next = (err?: any) => {

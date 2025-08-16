@@ -18,9 +18,7 @@ export class AuthenticateUserByEmail {
       user.created_at,
       user.updated_at
     );
-    const a = await this.userRepository.UpdateUserById(userToUpdate);
-    console.log(a);
-
+    await this.userRepository.UpdateUserById(userToUpdate);
     return true;
   }
 }

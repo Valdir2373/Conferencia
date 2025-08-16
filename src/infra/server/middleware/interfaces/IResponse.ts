@@ -9,4 +9,5 @@ export interface IResponse {
   cookie: (name: string, value: string, options?: ICookieOptions) => IResponse;
   clearCookie: (name: string, options?: ICookieOptions) => IResponse;
   redirect: (url: string) => void;
+  headersSent: any;
 }

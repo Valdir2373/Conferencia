@@ -1,5 +1,6 @@
 import { IMiddlewareHandler } from "./IMiddlewareHandler";
 import { HttpMethods } from "../../http/interface/IServer";
+import { IRequest } from "./IRequest";
 
 export interface IMiddlewareManagerRoutes {
   registerRouter(
@@ -33,6 +34,11 @@ export interface IMiddlewareManagerRoutes {
     ...handlers: IMiddlewareHandler[]
   ): void;
   registerRouterToAdmin(
+    methodHTTP: HttpMethods,
+    path: string,
+    ...handlers: IMiddlewareHandler[]
+  ): void;
+  registerRouterToAdminWithTwoFactors(
     methodHTTP: HttpMethods,
     path: string,
     ...handlers: IMiddlewareHandler[]

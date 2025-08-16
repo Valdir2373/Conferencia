@@ -1,4 +1,4 @@
-import { IPdfReadConvert, Result } from "../../domain/services/IPdfReadConvert";
+import { IPdfReadConvert, Result } from "./IPdfReadConvert";
 import pdf from "pdf-parse";
 
 export class PdfParseImpl implements IPdfReadConvert {

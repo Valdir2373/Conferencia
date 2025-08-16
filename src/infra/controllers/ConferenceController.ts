@@ -1,13 +1,10 @@
-import { IAuthTokenManager } from "../security/interfaces/IAuthTokenManager";
-import { IAuthUser } from "../security/interfaces/IAuthUser";
-
+import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
+import { IAuthUser } from "../security/auth/IAuthUser";
 import { IRequest } from "../server/middleware/interfaces/IRequest";
 import { IResponse } from "../server/middleware/interfaces/IResponse";
-import { IServer } from "../server/http/interface/IServer";
 import { ConferencesService } from "../service/ConferenceService";
 import { ConferenceSchemas } from "../../schemas/ConferenceSchemas";
-import { IUploadFileOptions } from "../server/middleware/interfaces/IUploadFileOptions";
-import { IJwtUser } from "../security/interfaces/IJwtUser";
+import { IJwtUser } from "../security/tokens/IJwtUser";
 import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
 
 export class ConferenceController {
@@ -38,7 +35,7 @@ export class ConferenceController {
     this.middlewareManagerRoutes.registerRouter(
       "get",
       "/conference/:idConference",
-      this.getConferenceById.bind(this)
+      this.getConferenceByIdOfEmail.bind(this)
     );
     this.middlewareManagerRoutes.registerRouter(
       "put",
@@ -50,6 +47,34 @@ export class ConferenceController {
       "/conference/:idConference",
       this.deleteConference.bind(this)
     );
+    this.middlewareManagerRoutes.registerRouterToAdmin(
+      "post",
+      "/conference/byEmail",
+      this.getConferenceOfUserByEmail.bind(this)
+    );
+    this.middlewareManagerRoutes.registerRouterToAdmin(
+      "get",
+      "/admin/conference/:idConference",
+      this.getConferenceById.bind(this)
+    );
+  }
+  async getConferenceById(req: IRequest, res: IResponse) {
+    const conference = await this.conferencesService.getConferenceById(
+      req.params.id
+    );
+    if (!conference) return res.status(400).json({ message: "not conference" });
+    return res.status(200).json(conference);
+  }
+  async getConferenceOfUserByEmail(req: IRequest, res: IResponse) {
+    const { emailUser } = req.body;
+    if (!emailUser) return res.status(400).json({ message: "not emailUser" });
+    console.log(emailUser);
+    const conferences = await this.conferencesService.getConferencesByEmail(
+      emailUser
+    );
+    if (!conferences)
+      return res.status(400).json({ message: "not conferences" });
+    res.status(200).json(conferences);
   }
 
   async deleteConference(req: IRequest, res: IResponse) {
@@ -64,7 +89,6 @@ export class ConferenceController {
   async updateConferenceById(req: IRequest, res: IResponse) {
     const user = await this.getUserByCookie(req, res);
     const conference = req.body;
-    console.log(conference);
 
     await this.conferencesService.updateConferenceByIdAndEmail(
       conference,
@@ -73,13 +97,14 @@ export class ConferenceController {
     res.json({ message: "success" });
   }
 
-  async getConferenceById(req: IRequest, res: IResponse) {
+  async getConferenceByIdOfEmail(req: IRequest, res: IResponse) {
     const jwt: IJwtUser = await this.getUserByCookie(req, res);
     const conference =
       await this.conferencesService.getConferenceByIdAndByEmail(
         jwt.email,
         req.params.idConference
       );
+
     if (!conference)
       return res.status(400).json({ message: "requisition bad request" });
 
@@ -93,7 +118,7 @@ export class ConferenceController {
     );
     if (!conferences) return res.json({ message: "not conferences" });
 
-    res.json({ message: conferences });
+    res.json(conferences);
   }
 
   private async convertPdfToConference(req: IRequest, res: IResponse) {
@@ -108,8 +133,6 @@ export class ConferenceController {
       email: jwt.email,
       pdf: pdfFile,
     };
-
-    console.log(inputData);
 
     try {
       const result = await this.conferencesService.convertPdf(inputData);

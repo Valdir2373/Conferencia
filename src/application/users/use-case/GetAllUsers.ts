@@ -1,20 +1,23 @@
 import { UserEntities } from "../../../domain/entities/User";
 import { IUserRepository } from "../../../domain/repository/IUserRepository";
-import { UserOutputDTO } from "../DTO/UserOutput";
+import { UserOutputToAdminDTO } from "../DTO/UserOutputToAdminDTO";
 
 export class GetAllUsers {
   constructor(private userRepository: IUserRepository) {}
-  async execute(): Promise<UserOutputDTO[] | undefined> {
+  async execute(): Promise<UserOutputToAdminDTO[] | undefined> {
     const allUsers = await this.userRepository.getAllUsers();
-    console.log(allUsers);
 
     if (!allUsers) return;
-    const usersOutputList: UserOutputDTO[] = allUsers.map(
+    const usersOutputList: UserOutputToAdminDTO[] = allUsers.map(
       (userEnti: UserEntities) => {
+        const verification = typeof userEnti.verification === "boolean";
         return {
           email: userEnti.email,
           id: userEnti.id,
+          adm: userEnti.adm,
           username: userEnti.username,
+          created: userEnti.created_at,
+          verification: verification,
         };
       }
     );
