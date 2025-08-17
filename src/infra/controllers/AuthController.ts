@@ -211,6 +211,8 @@ export class AuthController {
   public async verifyUser(req: IRequest, res: IResponse) {
     const result = await this.verifyCookieToAcess(req);
 
+    console.log(req.cookies);
+
     if (result && result.status) {
       return res.status(200).json({
         username: result.jwt.username,
@@ -299,6 +301,8 @@ export class AuthController {
       if (e.message === "Erro de validação do DTO") {
         console.log(e.message + " tratado");
       }
+      if (e.message === "user not verificated")
+        return res.status(403).json({ message: e.message });
     }
   }
 

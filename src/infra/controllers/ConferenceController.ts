@@ -32,12 +32,12 @@ export class ConferenceController {
       "/user-conference",
       this.getConferenceByEmail.bind(this)
     );
-    this.middlewareManagerRoutes.registerRouter(
+    this.middlewareManagerRoutes.registerRouterToUser(
       "get",
       "/conference/:idConference",
       this.getConferenceByIdOfEmail.bind(this)
     );
-    this.middlewareManagerRoutes.registerRouter(
+    this.middlewareManagerRoutes.registerRouterToUser(
       "put",
       "/conference/update/:idConference",
       this.updateConferenceById.bind(this)
@@ -87,17 +87,17 @@ export class ConferenceController {
   }
 
   async updateConferenceById(req: IRequest, res: IResponse) {
-    const user = await this.getUserByCookie(req, res);
     const conference = req.body;
-
     await this.conferencesService.updateConferenceByIdAndEmail(
       conference,
-      user.email
+      req.userPayload.email
     );
     res.json({ message: "success" });
   }
 
   async getConferenceByIdOfEmail(req: IRequest, res: IResponse) {
+    console.log(req.cookies);
+
     const jwt: IJwtUser = await this.getUserByCookie(req, res);
     const conference =
       await this.conferencesService.getConferenceByIdAndByEmail(
@@ -112,9 +112,8 @@ export class ConferenceController {
   }
 
   private async getConferenceByEmail(req: IRequest, res: IResponse) {
-    const jwt: IJwtUser = await this.getUserByCookie(req, res);
     const conferences = await this.conferencesService.getConferencesByEmail(
-      jwt.email
+      req.userPayload.email
     );
     if (!conferences) return res.json({ message: "not conferences" });
 
@@ -153,9 +152,11 @@ export class ConferenceController {
       req.cookies.tokenAcess
     );
 
+    console.log(result);
+
     if (!result.status) {
       res.status(401).json({ message: "unauthorized" });
-      throw new Error("usuario não autorizado");
+      throw new Error("token invalido");
     }
     return result.jwt;
   }

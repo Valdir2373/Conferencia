@@ -66,8 +66,8 @@ export class AppModule {
     this.server = new ExpressAdapter();
     this.middlewareManagerRoutes = new MiddlewareAdapter(
       this.server,
-      this.authUser,
-      this.authTokenManager
+      this.authTokenManager,
+      this.userService
     );
   }
 

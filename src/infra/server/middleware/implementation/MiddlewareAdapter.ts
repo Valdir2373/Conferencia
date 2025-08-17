@@ -6,12 +6,16 @@ import { IAuthTokenManager } from "../../../security/tokens/IAuthTokenManager";
 import { IRequest } from "../interfaces/IRequest";
 import { IResponse } from "../interfaces/IResponse";
 import { IJwtUser } from "../../../security/tokens/IJwtUser";
+import { UserOutputDTO } from "../../../../application/users/DTO/UserOutput";
+import { UsersService } from "../../../service/UsersService";
+import { ErrorReply } from "redis";
 
 export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
+  private isProduction = process.env.NODE_ENV === "production";
   constructor(
     private server: IServer,
-    private authUser: IAuthUser,
-    private authTokenManager: IAuthTokenManager
+    private authTokenManager: IAuthTokenManager,
+    private usersService: UsersService
   ) {}
 
   registerRouterToAdmin(
@@ -117,7 +121,7 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       path,
 
       async (req, res, next) => {
-        req.userPayload = await this.getUserByCookie(req, res);
+        req.userPayload = await this.getUserByCookieAndRefreshToken(req, res);
 
         await this.authenticationOfPassword(req, res, next);
       },
@@ -134,7 +138,7 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       methodHTTP,
       path,
       async (req, res, next) => {
-        req.userPayload = await this.getUserByCookie(req, res);
+        req.userPayload = await this.getUserByCookieAndRefreshToken(req, res);
         await this.authenticationOfPassword(req, res, next);
       },
       ...handlers
@@ -151,8 +155,10 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       if (!email || !password)
         return res.status(400).json({ message: "Email ou senha faltando" });
 
-      const verificationOfPassword =
-        await this.authUser.verifyPasswordFromUserByEmail(email, password);
+      const verificationOfPassword = await this.usersService.loginUserService({
+        useremail: email,
+        userpassword: password,
+      });
 
       if (!verificationOfPassword)
         return res.status(401).json({ message: "Senha incorreta" });
@@ -170,7 +176,7 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     next
   ) => {
     try {
-      const user = await this.getUserByCookie(req, res);
+      const user = await this.getUserByCookieAndRefreshToken(req, res);
       req.userPayload = user;
       return next();
     } catch (error: any) {
@@ -205,9 +211,11 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     next
   ) => {
     try {
-      const user = await this.getUserByCookie(req, res);
+      const user = await this.getUserByCookieAndRefreshToken(req, res);
       req.userPayload = user;
-      const admin = await this.authUser.verifyUserAdminByEmail(user.email);
+      const admin = await this.usersService.verifyIfUserAdminByEmail(
+        user.email
+      );
       if (admin) next();
     } catch (error: any) {
       if (
@@ -218,24 +226,72 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       ) {
         return;
       }
-      // return res.status(401).json({ message: "unauthorized" });
     }
   };
-  private async getUserByCookie(
+  private async getUserByCookieAndRefreshToken(
     req: IRequest,
     res: IResponse
   ): Promise<IJwtUser> {
-    if (!req.cookies || !req.cookies.tokenAcess) {
+    const tokenAcess = req.cookies?.tokenAcess;
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!req.cookies || !tokenAcess || !refreshToken) {
       res.status(401).json({ message: "No cookie" });
       throw new Error("cookies faltando na requisição");
     }
-    const result = await this.authTokenManager.verifyToken(
-      req.cookies.tokenAcess
+
+    const tokenAcessVerify = await this.authTokenManager.verifyToken(
+      tokenAcess
     );
-    if (!result.status) {
+    const refreshTokenVerify = await this.authTokenManager.verifyRefreshToken(
+      refreshToken
+    );
+
+    if (refreshTokenVerify.status) {
+      if (tokenAcessVerify.status) {
+        return tokenAcessVerify.jwt;
+      } else {
+        const userOutput = await this.usersService.getByIdUser(
+          refreshTokenVerify.jwt.id
+        );
+        if (!userOutput) {
+          throw new Error("user not found");
+        }
+        await this.cookieDefinerUser(res, userOutput, refreshToken);
+        return refreshTokenVerify.jwt;
+      }
+    } else {
       res.status(401).json({ message: "unauthorized" });
-      throw new Error("usuario não autorizado");
+      throw new Error("unauthorized");
     }
-    return result.jwt;
+  }
+
+  private async cookieDefinerUser(
+    res: IResponse,
+    userOutput: UserOutputDTO,
+    refreshToken: string
+  ): Promise<void> {
+    res.clearCookie("refreshToken");
+    res.clearCookie("tokenAcess");
+    await this.authTokenManager.revokeRefreshToken(refreshToken);
+
+    res.cookie(
+      "refreshToken",
+      this.authTokenManager.generateRefreshToken(userOutput),
+      {
+        httpOnly: true,
+        secure: this.isProduction,
+        maxAge: 12 * 24 * 60 * 60 * 1000,
+        sameSite: this.isProduction ? "none" : "lax",
+        path: "/",
+      }
+    );
+    res.cookie("tokenAcess", this.authTokenManager.generateToken(userOutput), {
+      httpOnly: true,
+      secure: this.isProduction,
+      maxAge: 16 * 60 * 1000,
+      sameSite: this.isProduction ? "none" : "lax",
+      path: "/",
+    });
   }
 }

@@ -17,11 +17,6 @@ export class UsersControllers {
   ) {}
 
   public async mountRoutes() {
-    this.middlewareManagerRoutes.registerRouter(
-      "post",
-      "/createAdmin",
-      this.createAdmin.bind(this)
-    );
     this.middlewareManagerRoutes.registerRouterToAdmin(
       "get",
       "/getLink",
@@ -57,6 +52,12 @@ export class UsersControllers {
     //   "/users/update",
     //   this.resetPassword.bind(this)
     // );
+    this.middlewareManagerRoutes.registerRouterToAdminWithTwoFactors(
+      "post",
+      "/create-admin",
+      this.createAdmin.bind(this)
+    );
+
     this.middlewareManagerRoutes.registerRouterToUser(
       "get",
       "/user-adm",
@@ -78,7 +79,6 @@ export class UsersControllers {
       this.resetPasswordByEmail.bind(this)
     );
   }
-  private async resetPassword(req: IRequest, res: IResponse) {}
   private async adminResetPassword(req: IRequest, res: IResponse) {
     const user = await this.userService.getByIdUser(req.body.id);
     if (!user) return res.status(400).json({ message: "bad request" });
@@ -101,7 +101,10 @@ export class UsersControllers {
     }
   }
   private async verifyIfUserIsAdm(req: IRequest, res: IResponse) {
-    const email = req.userPayload?.email;
+    const email = req.userPayload.email;
+
+    console.log(email);
+
     if (!email) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -125,10 +128,17 @@ export class UsersControllers {
     res.status(200).send(token);
   }
   private async createAdmin(req: IRequest, res: IResponse) {
-    const { email } = req.body;
-    const result = await this.userService.userToAdmin(email);
-    if (typeof result !== "object") return res.status(200).json(result);
-    if (result) return res.status(400).json({ message: result.message });
+    try {
+      const { id } = req.body;
+      const result = await this.userService.userToAdmin(id);
+      if (typeof result !== "object" && result)
+        return res.status(200).json(result);
+      if (!result) return res.status(404).json({ menubar: "user not found" });
+      if (result) return res.status(400).json({ message: result.message });
+    } catch (e: any) {
+      if (e.message === "user not verification")
+        return res.status(403).json({ message: e.message });
+    }
   }
   private async resetPasswordByEmail(req: IRequest, res: IResponse) {
     try {

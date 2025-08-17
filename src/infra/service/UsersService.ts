@@ -166,14 +166,17 @@ export class UsersService {
   }
 
   async userToAdmin(
-    email: string
+    id: string
   ): Promise<boolean | { status: false; message: string }> {
     try {
-      const admin = await this.createAdmin.execute(email);
+      const user = await this.getByIdUser(id);
+      if (!user) throw new Error("user not found");
+      const admin = await this.createAdmin.execute(user.email);
       return admin;
     } catch (e: any) {
       if (e.message === "user already admin")
         return { status: false, message: "user already admin" };
+      if (e.message === "user not found") return false;
       throw e;
     }
   }
@@ -191,6 +194,7 @@ export class UsersService {
     const userOutput = await this.getByEmailUser(userLogin.useremail);
     if (!userOutput) return false;
     const user = await this.getUserByEmail.execute(userOutput.email);
+    if (user.verification !== true) throw new Error("user not verificated");
     const userInput: UserInputDTO = {
       id: user.id,
       useremail: user.email,

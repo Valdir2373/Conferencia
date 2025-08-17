@@ -1,6 +1,11 @@
 import { IJwtUser } from "../../../security/tokens/IJwtUser";
 import { IFile } from "./IFile";
 
+interface Cookies {
+  refreshToken: string;
+  tokenAcess: string;
+}
+
 export interface IRequest {
   body: any;
   params: any;
@@ -8,7 +13,7 @@ export interface IRequest {
   headers: any;
   method: string;
   path: string;
-  userPayload?: IJwtUser;
-  cookies?: { [key: string]: string };
+  userPayload: IJwtUser;
+  cookies?: Cookies;
   file: (fieldName: string) => IFile | undefined;
 }

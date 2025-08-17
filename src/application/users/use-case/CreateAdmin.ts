@@ -19,9 +19,13 @@ export class CreateAdmin {
       user.updated_at
     );
 
-    const admin = await this.usersRepository.saveAdmin(userEntities);
+    const verification = user.verification === true;
+
+    let admin: UserEntities | undefined;
+    if (verification)
+      admin = await this.usersRepository.saveAdmin(userEntities);
 
     if (admin) return true;
-    return false;
+    throw new Error("user not verification");
   }
 }

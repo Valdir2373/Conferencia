@@ -20,7 +20,7 @@ interface ITokenVerifiedFailure {
   message: string;
 }
 
-type ITokenVerified = ITokenVerifiedSuccess | ITokenVerifiedFailure;
+export type ITokenVerified = ITokenVerifiedSuccess | ITokenVerifiedFailure;
 
 export interface IAuthTokenManager {
   generateToken(payload: object, options?: TokenGenerationOptions): string;
