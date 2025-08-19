@@ -151,7 +151,7 @@ export class JsonwebtokenAuthTokenManager implements IAuthTokenManager {
   public async verifyTokenTimerSet<T extends object>(
     token: string
   ): Promise<T> {
-    return await this.verifyAndHandleErrors(token, this.jwtTimeSetSecret);
+    return await this.verifyAndHandleErrors<T>(token, this.jwtTimeSetSecret);
   }
 
   public async revokeToken(token: string): Promise<void> {

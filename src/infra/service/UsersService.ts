@@ -18,6 +18,7 @@ import { VerifyIfUserAdmin } from "../../application/users/use-case/VerifyIfUser
 import { UserOutputToAdminDTO } from "../../application/users/DTO/UserOutputToAdminDTO";
 import { IUserToUpdateDTO } from "../../application/users/DTO/IUserToUpdateDTO";
 import { ResetPasswordById } from "../../application/users/use-case/ResetPassword";
+import { VerifyIfUserIsVerifedByEmail } from "../../application/users/use-case/VerifyIfUserIsVerifedByEmail";
 
 export class UsersService {
   private usersRepository: IUserRepository;
@@ -26,6 +27,7 @@ export class UsersService {
   private getAllUsersUseCase: GetAllUsers;
   private deleteByIdUser: DeleteByIdUser;
   private getUserByEmail: GetUserByEmail;
+  private verifyIfUserIsVerifedByEmail: VerifyIfUserIsVerifedByEmail;
   private getUserById: GetUserById;
   private updateUserByIdUseCase: UpdateUserById;
   private loginUser: LoginUser;
@@ -39,6 +41,9 @@ export class UsersService {
     private passwordHasher: IPasswordHasher
   ) {
     this.usersRepository = UsersRepository;
+    this.verifyIfUserIsVerifedByEmail = new VerifyIfUserIsVerifedByEmail(
+      this.usersRepository
+    );
     this.userCreate = new UserCreate(
       this.usersRepository,
       this.passwordHasher,
@@ -78,13 +83,18 @@ export class UsersService {
       if (await this.getByEmailUser(user.useremail))
         throw new UserAlreadyExistsError("Usuário com este email já existe.");
     } catch (e: any) {
+      console.log(e);
+
       if (e.message !== "user not found") throw e;
     }
+    console.log(user);
 
     try {
       const newUser: UserOutputDTO | undefined = await this.userCreate.execute(
         user
       );
+      console.log(newUser);
+
       if (!newUser) {
         console.error("Erro: userCreate.execute não retornou um novo usuário.");
 
@@ -201,6 +211,7 @@ export class UsersService {
       username: user.username,
       userpassword: userLogin.userpassword,
     };
+
     const login: false | UserOutputDTO = await this.loginUser.execute(
       userInput
     );
@@ -209,8 +220,8 @@ export class UsersService {
   }
 
   public async verifyUserByEmail(email: string): Promise<boolean> {
-    const user = await this.getUserByEmail.execute(email);
-    return user ? true : false;
+    const user = await this.verifyIfUserIsVerifedByEmail.execute(email);
+    return user;
   }
   public async authenticateUser(email: string): Promise<boolean> {
     return await this.authenticateUserByEmail.execute(email);

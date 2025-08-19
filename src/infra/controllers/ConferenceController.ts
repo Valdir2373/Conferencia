@@ -17,7 +17,7 @@ export class ConferenceController {
   ) {}
 
   async mountRoutes() {
-    this.middlewareManagerRoutes.registerRouter(
+    this.middlewareManagerRoutes.registerRouterToUser(
       "post",
       "/conference",
       this.addConference.bind(this)
@@ -27,7 +27,7 @@ export class ConferenceController {
       "/send-pdf",
       this.convertPdfToConference.bind(this)
     );
-    this.middlewareManagerRoutes.registerRouter(
+    this.middlewareManagerRoutes.registerRouterToUser(
       "get",
       "/user-conference",
       this.getConferenceByEmail.bind(this)
@@ -96,7 +96,7 @@ export class ConferenceController {
   }
 
   async getConferenceByIdOfEmail(req: IRequest, res: IResponse) {
-    console.log(req.cookies);
+    // console.log(req.cookies);
 
     const jwt: IJwtUser = await this.getUserByCookie(req, res);
     const conference =
@@ -151,8 +151,6 @@ export class ConferenceController {
     const result = await this.authTokenManager.verifyToken(
       req.cookies.tokenAcess
     );
-
-    console.log(result);
 
     if (!result.status) {
       res.status(401).json({ message: "unauthorized" });

@@ -2,7 +2,10 @@ import { HttpMethods, IServer } from "../../http/interface/IServer";
 import { IMiddlewareManagerRoutes } from "../interfaces/IMiddlewareManagerRoutes";
 import { IMiddlewareHandler } from "../interfaces/IMiddlewareHandler";
 import { IAuthUser } from "../../../security/auth/IAuthUser";
-import { IAuthTokenManager } from "../../../security/tokens/IAuthTokenManager";
+import {
+  IAuthTokenManager,
+  ITokenVerified,
+} from "../../../security/tokens/IAuthTokenManager";
 import { IRequest } from "../interfaces/IRequest";
 import { IResponse } from "../interfaces/IResponse";
 import { IJwtUser } from "../../../security/tokens/IJwtUser";
@@ -195,16 +198,19 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     next
   ) => {
     try {
-      const result = await this.authTokenManager.verifyTokenTimerSet(
-        req.params.idToken
+      const result = await this.authTokenManager.verifyTokenTimerSet<any>(
+        req.params.idTokenCreate
       );
       if (result.status) return next();
-
       throw new Error("token invalid");
     } catch (error: any) {
-      return res.status(401).json({ message: "unauthorized" });
+      if (error.message === "token invalid") {
+        return res.status(401).json({ message: "unauthorized" });
+      }
+      console.log(error);
     }
   };
+
   private authenticationToAdmin: IMiddlewareHandler = async (
     req,
     res,
@@ -222,7 +228,8 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
         (res.headersSent &&
           error.message === "cookies faltando na requisição") ||
         error.message === "user not admin" ||
-        error.message === "usuario não autorizado"
+        error.message === "usuario não autorizado" ||
+        error.message === "user not found"
       ) {
         return;
       }
@@ -280,6 +287,7 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       this.authTokenManager.generateRefreshToken(userOutput),
       {
         httpOnly: true,
+        partitioned: true,
         secure: this.isProduction,
         maxAge: 12 * 24 * 60 * 60 * 1000,
         sameSite: this.isProduction ? "none" : "lax",
@@ -288,6 +296,7 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     );
     res.cookie("tokenAcess", this.authTokenManager.generateToken(userOutput), {
       httpOnly: true,
+      partitioned: true,
       secure: this.isProduction,
       maxAge: 16 * 60 * 1000,
       sameSite: this.isProduction ? "none" : "lax",

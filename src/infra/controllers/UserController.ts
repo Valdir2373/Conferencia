@@ -4,10 +4,17 @@ import { UsersService } from "../service/UsersService";
 import { UserOutputDTO } from "../../application/users/DTO/UserOutput";
 import { UsersSchemas } from "../../schemas/UsersSchemas";
 import { IEmailService } from "../email/IEmailService";
-import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
+import {
+  IAuthTokenManager,
+  ITokenVerified,
+  ITokenVerifiedEmailToVerify,
+} from "../security/tokens/IAuthTokenManager";
 import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
+import { IUserRegister } from "../../application/users/DTO/IUserRegister";
+import { IJwtUser, IJwtUserToVerify } from "../security/tokens/IJwtUser";
 
 export class UsersControllers {
+  private isProduction = process.env.NODE_ENV === "production";
   constructor(
     private userService: UsersService,
     private usersSchemas: UsersSchemas,
@@ -103,8 +110,6 @@ export class UsersControllers {
   private async verifyIfUserIsAdm(req: IRequest, res: IResponse) {
     const email = req.userPayload.email;
 
-    console.log(email);
-
     if (!email) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -123,7 +128,7 @@ export class UsersControllers {
   private async createLinkToCreateNewUser(req: IRequest, res: IResponse) {
     const token = this.token.generateTokenTimerSet(
       { message: "link to create user" },
-      "60m"
+      "24h"
     );
     res.status(200).send(token);
   }
@@ -144,7 +149,7 @@ export class UsersControllers {
     try {
       const { token, password } = req.body;
 
-      const user = await this.token.verifyTokenTimerSet(token);
+      const user = await this.token.verifyTokenTimerSet<ITokenVerified>(token);
 
       if (!user.status)
         return res.status(401).json({ message: "unauthorized" });
@@ -163,18 +168,36 @@ export class UsersControllers {
   private async createUser(req: IRequest, res: IResponse): Promise<any> {
     try {
       const inputData = req.body;
+      console.log(inputData);
+
+      const token = req.params.idTokenCreate;
+      if (req.cookies) {
+        const userToRegister = await this.redirectUserToPageConfirmEmail(req);
+        if (userToRegister)
+          if (userToRegister.status)
+            return res.status(403).json({
+              email: userToRegister.email,
+            });
+      }
       if (!inputData)
         return res.status(401).json({ ERROR: "user field not found " });
+
       this.usersSchemas.usersInputValidator(inputData);
       const userOutput: UserOutputDTO = await this.userService.createNewUser(
         inputData
       );
+
       await this.email.sendEmailVerificationUser(userOutput);
-      const tokenToRevoke = req.params.idTokenCreate;
-      await this.token.revokeTokenTimerSet(tokenToRevoke);
+      this.defineCookieRegister(res, {
+        email: userOutput.email,
+      });
+
       return res.status(201).json(userOutput);
     } catch (e: any) {
-      if (e.message === "Erro de validação do DTO") return;
+      console.log(e);
+
+      if (e.message === "Erro de validação do DTO")
+        return res.status(400).json({ message: e.details[0].message });
 
       if (e.message === "Usuário com este email já existe.")
         return res.status(401).json({ message: e.message });
@@ -182,6 +205,40 @@ export class UsersControllers {
       console.error(e);
     }
   }
+
+  private async redirectUserToPageConfirmEmail(
+    req: IRequest
+  ): Promise<false | IJwtUserToVerify> {
+    if (!req.cookies) return false;
+    const emailToRegister =
+      await this.token.verifyTokenTimerSet<ITokenVerifiedEmailToVerify>(
+        req.cookies.tokenRegister
+      );
+
+    if (!emailToRegister.status) return false;
+
+    return emailToRegister.jwt;
+  }
+
+  private defineCookieRegister(res: IResponse, userRegister: IUserRegister) {
+    const expiresMs = 4 * 60 * 60 * 1000; // 4 horas em milissegundos
+    const expiresSec = expiresMs / 1000; // 4 horas em segundos para o JWT
+
+    const tokenRegister = this.token.generateTokenTimerSet(
+      userRegister,
+      expiresSec
+    );
+    res.cookie("tokenRegister", tokenRegister, {
+      httpOnly: true,
+      partitioned: true,
+      secure: this.isProduction,
+      maxAge: 4 * 60 * 60 * 1000,
+      sameSite: this.isProduction ? "none" : "lax",
+      path: "/",
+    });
+    console.log(tokenRegister);
+  }
+
   private async allUsers(req: IRequest, res: IResponse): Promise<any> {
     const usersOutputList: UserOutputDTO[] | undefined =
       await this.userService.getAllUsers();

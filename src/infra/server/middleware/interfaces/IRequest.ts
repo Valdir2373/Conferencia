@@ -4,6 +4,7 @@ import { IFile } from "./IFile";
 interface Cookies {
   refreshToken: string;
   tokenAcess: string;
+  tokenRegister: string;
 }
 
 export interface IRequest {

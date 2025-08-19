@@ -6,3 +6,11 @@ export interface IJwtUser {
   exp: number;
   jti: string;
 }
+
+export interface IJwtUserToVerify {
+  email: string;
+  status: boolean;
+  iat: number;
+  exp: number;
+  jti: string;
+}

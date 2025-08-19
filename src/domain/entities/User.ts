@@ -6,7 +6,7 @@ export class UserEntities {
     public email: string,
     public password: string,
     public id: string,
-    public verification: boolean | Date,
+    public verification: true | Date,
     public adm: boolean,
     public created_at: Date,
     public updated_at: Date
@@ -39,7 +39,7 @@ export class UserEntities {
     username: string;
     email: string;
     password?: string;
-    verification: boolean | Date;
+    verification: true | Date;
     adm: boolean;
     created_at: Date | string;
     updated_at: Date | string;

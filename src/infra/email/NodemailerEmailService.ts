@@ -157,7 +157,7 @@ export class NodemailerEmailService implements IEmailService {
   public async sendEmailVerificationUser(
     userOutputDTO: UserOutputDTO
   ): Promise<any> {
-    const link = this.genarateLinkVerificationUser(userOutputDTO);
+    const link = this.genarateLinkVerificationUser(userOutputDTO, 15);
 
     const message =
       "Recebemos uma solicitação de confirmação para sua conta. Por favor, use o link de verificação, abaixo para prosseguir:";
@@ -169,12 +169,17 @@ export class NodemailerEmailService implements IEmailService {
       message
     );
   }
-  private genarateLinkVerificationUser(userOutputDTO: UserOutputDTO) {
+  private genarateLinkVerificationUser(
+    userOutputDTO: UserOutputDTO,
+    time: number
+  ) {
+    const expiresMs = time * 60 * 1000;
+    const expiresSec = expiresMs / 1000;
     return `http:/localhost:5173/verifyEmail/${this.token.generateTokenTimerSet(
       {
         email: userOutputDTO.email,
       },
-      "5m"
+      expiresSec
     )}`;
   }
   private genarateLinkResetPassword(userOutputDTO: UserOutputDTO) {

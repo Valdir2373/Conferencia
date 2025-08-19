@@ -5,7 +5,11 @@ import { ValidationError } from "../../shared/error/ValidationError";
 import { IDTOBuilderAndValidator } from "../../shared/validator/IFieldsValidator";
 import { IEmailService } from "../email/IEmailService";
 import { IUserLoginDto } from "../../application/users/DTO/IUserLoginDto";
-import { IAuthTokenManager } from "../security/tokens/IAuthTokenManager";
+import {
+  IAuthTokenManager,
+  ITokenVerified,
+  ITokenVerifiedEmailToVerify,
+} from "../security/tokens/IAuthTokenManager";
 import { IRequest } from "../server/middleware/interfaces/IRequest";
 import { IResponse } from "../server/middleware/interfaces/IResponse";
 import { UsersService } from "../service/UsersService";
@@ -30,8 +34,8 @@ export class AuthController {
   mountRouters() {
     this.middlewareManagerRoutes.registerRouterAuthenticTokenToCreate(
       "get",
-      "/verify/:idToken",
-      this.verifedWithSuccess.bind(this)
+      "/verify/:idTokenCreate",
+      this.verifyingWithSuccessLinkToRegisterUser.bind(this)
     );
     this.middlewareManagerRoutes.registerRouter(
       "post",
@@ -62,7 +66,7 @@ export class AuthController {
     );
     this.middlewareManagerRoutes.registerRouter(
       "get",
-      "/resend-verification/:email",
+      "/resend-verification",
       this.resendVerification.bind(this)
     );
     this.middlewareManagerRoutes.registerRouter(
@@ -73,14 +77,45 @@ export class AuthController {
   }
 
   private async verifyTokenPassword(req: IRequest, res: IResponse) {
-    const token = await this.token.verifyTokenTimerSet(req.body.tokenPassword);
+    const token = await this.token.verifyTokenTimerSet<any>(
+      req.body.tokenPassword
+    );
     return token.status
       ? res.status(200).json({ message: "authorized" })
       : res.status(401).json({ message: "unauthorized" });
   }
 
-  private async verifedWithSuccess(req: IRequest, res: IResponse) {
-    res.status(200).json({ message: "link autorizado." });
+  private async verifyingWithSuccessLinkToRegisterUser(
+    req: IRequest,
+    res: IResponse
+  ) {
+    if (
+      !req.cookies ||
+      (!req.cookies.tokenAcess &&
+        !req.cookies.refreshToken &&
+        !req.cookies.tokenRegister)
+    )
+      return res.status(200).json({ message: "link autorizado." });
+    const userToRegister =
+      await this.token.verifyTokenTimerSet<ITokenVerifiedEmailToVerify>(
+        req.cookies.tokenRegister
+      );
+
+    if (req.cookies.tokenRegister)
+      if (userToRegister.status) {
+        const user = await this.usersService.getByEmailUser(
+          userToRegister.jwt.email
+        );
+        if (user) {
+          return res.status(202).json({ email: userToRegister.jwt.email });
+        }
+        res.clearCookie("tokenRegister");
+        throw new Error("token invalid");
+      } else if (!userToRegister.status) {
+        res.clearCookie("tokenRegister");
+      }
+
+    return res.status(401).json({ message: "unauthorized" });
   }
 
   private async loggoutUser(req: IRequest, res: IResponse) {
@@ -89,6 +124,7 @@ export class AuthController {
 
       res.clearCookie("tokenAcess", {
         httpOnly: true,
+        partitioned: true,
         secure: this.isProduction,
         sameSite: "none",
         path: "/",
@@ -96,6 +132,7 @@ export class AuthController {
 
       res.clearCookie("refreshToken", {
         httpOnly: true,
+        partitioned: true,
         secure: this.isProduction,
         sameSite: "none",
         path: "/",
@@ -112,16 +149,28 @@ export class AuthController {
 
   private async verifyEmail(req: IRequest, res: IResponse) {
     const { token } = req.params;
-    const response = await this.token.verifyTokenTimerSet(token);
+
+    const response =
+      await this.token.verifyTokenTimerSet<ITokenVerifiedEmailToVerify>(token);
+
     console.log(response);
 
     if (!response.status)
       return res.status(401).json({ message: "unauthorized" });
     const { email } = response.jwt;
+    const verifedUser = await this.usersService.verifyUserByEmail(email);
+    if (verifedUser)
+      return res.status(401).json({ message: "user already verifed" });
     await this.usersService.authenticateUser(email);
     const userOutput = await this.usersService.getByEmailUser(email);
-    if (!userOutput) return;
+    if (!userOutput) return res.status(401).json({ message: "user not found" });
+
     this.cookieDefinerUser(res, userOutput);
+    console.log("aqui");
+
+    await this.token.revokeTokenTimerSet(token);
+    res.clearCookie("tokenRegister");
+    return res.status(200).json({ message: "user authenticed" });
     return res.redirect("http://localhost:5173/");
   }
 
@@ -130,17 +179,28 @@ export class AuthController {
     res: IResponse
   ): Promise<any> {
     try {
-      const { email } = req.params;
+      if (!req.cookies) return;
+      const tokenRegister =
+        await this.token.verifyTokenTimerSet<ITokenVerifiedEmailToVerify>(
+          req.cookies.tokenRegister
+        );
+      if (!tokenRegister.status)
+        return res.status(401).json({ message: "acess denied" });
+      const email = tokenRegister.jwt.email;
       const verified = await this.usersService.verifyUserByEmail(email);
-      if (verified)
+      if (verified) {
         return res.status(400).json({ message: "Email já verificado" });
+      }
       const userOutput = await this.usersService.getByEmailUser(email);
-      if (!userOutput) return;
+
+      if (!userOutput) {
+        return res.status(404).json({ message: "user not found" });
+      }
       await this.emailService.sendEmailVerificationUser(userOutput);
       return res.status(200).json({ message: "email sended" });
     } catch (e: any) {
       if (e.message === "user not found")
-        return res.json({ message: "email sended" });
+        return res.status(404).json({ message: e.message });
       console.error(e);
       return res.status(500).json({ message: "internal server error" });
     }
@@ -153,12 +213,14 @@ export class AuthController {
       if (!result || !result.status) {
         res.clearCookie("tokenAcess", {
           httpOnly: true,
+          partitioned: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: this.isProduction ? "none" : "lax",
           path: "/",
         });
         res.clearCookie("refreshToken", {
           httpOnly: true,
+          partitioned: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: this.isProduction ? "none" : "lax",
           path: "/",
@@ -180,6 +242,7 @@ export class AuthController {
 
       res.cookie("tokenAcess", this.token.generateToken(userOutput), {
         httpOnly: true,
+        partitioned: true,
         secure: process.env.NODE_ENV === "production",
         maxAge: 16 * 60 * 1000,
         sameSite: this.isProduction ? "none" : "lax",
@@ -192,12 +255,14 @@ export class AuthController {
 
       res.clearCookie("tokenAcess", {
         httpOnly: true,
+        partitioned: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: this.isProduction ? "none" : "lax",
         path: "/",
       });
       res.clearCookie("refreshToken", {
         httpOnly: true,
+        partitioned: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: this.isProduction ? "none" : "lax",
         path: "/",
@@ -211,32 +276,29 @@ export class AuthController {
   public async verifyUser(req: IRequest, res: IResponse) {
     const result = await this.verifyCookieToAcess(req);
 
-    console.log(req.cookies);
+    if (req.cookies)
+      if (result && result.status) {
+        // if (req.cookies.tokenRegister) {
+        //   this.token.revokeTokenTimerSet(req.cookies.tokenRegister);
+        //   res.clearCookie("tokenRegister");
+        // }
 
-    if (result && result.status) {
-      return res.status(200).json({
-        username: result.jwt.username,
-        email: result.jwt.email,
-        id: result.jwt.id,
-      });
-    } else {
-      return res.status(401).json({ message: "Não autorizado." });
-    }
+        return res.status(200).json({
+          username: result.jwt.username,
+          email: result.jwt.email,
+          id: result.jwt.id,
+        });
+      } else {
+        return res.status(401).json({ message: "Não autorizado." });
+      }
   }
 
   async verifyCookieToRefresh(req: IRequest): Promise<any> {
     const cookie = req.cookies;
-    if (!cookie || !cookie.refreshToken) {
-      console.log(
-        "verifyCookieToRefresh: refreshToken não encontrado ou sem cookies."
-      );
-      return { status: false, jwt: null };
-    }
-
+    if (!cookie || !cookie.refreshToken) return { status: false, jwt: null };
     const token = cookie.refreshToken;
-
     try {
-      const result = await this.token.verifyRefreshToken(token);
+      const result = await this.token.verifyRefreshToken<ITokenVerified>(token);
       if (result.status) {
         console.log("verifyCookieToRefresh: refreshToken válido.");
         return result;
@@ -260,9 +322,9 @@ export class AuthController {
     const cookie = req.cookies;
 
     if (!cookie || !cookie.tokenAcess) {
-      console.log(
-        "verifyCookieToAcess: tokenAcess não encontrado ou sem cookies."
-      );
+      // console.log(
+      //   "verifyCookieToAcess: tokenAcess não encontrado ou sem cookies."
+      // );
       return { status: false, jwt: null };
     }
 
@@ -271,7 +333,7 @@ export class AuthController {
       const result = await this.token.verifyToken(tokenAcess);
       if (result.status) return result;
       else {
-        console.log("verifyCookieToAcess: tokenAcess inválido ou expirado.");
+        // console.log("verifyCookieToAcess: tokenAcess inválido ou expirado.");
         return { status: false, jwt: null };
       }
     } catch (error: any) {
@@ -295,6 +357,8 @@ export class AuthController {
       if (!userOutput)
         return res.status(401).json({ message: "Access Denied" });
 
+      if (req.cookies)
+        if (req.cookies.tokenRegister) res.clearCookie("tokenRegister");
       this.cookieDefinerUser(res, userOutput);
       return res.status(200).json(userOutput);
     } catch (e: any) {
@@ -327,6 +391,7 @@ export class AuthController {
   cookieDefinerUser(res: IResponse, userOutput: UserOutputDTO) {
     res.cookie("refreshToken", this.token.generateRefreshToken(userOutput), {
       httpOnly: true,
+      partitioned: true,
       secure: this.isProduction,
       maxAge: 12 * 24 * 60 * 60 * 1000,
       sameSite: this.isProduction ? "none" : "lax",
@@ -334,6 +399,7 @@ export class AuthController {
     });
     res.cookie("tokenAcess", this.token.generateToken(userOutput), {
       httpOnly: true,
+      partitioned: true,
       secure: this.isProduction,
       maxAge: 16 * 60 * 1000,
       sameSite: this.isProduction ? "none" : "lax",

@@ -24,7 +24,7 @@ export class UsersSchemas {
         required: true,
         minLength: 3,
         maxLength: 15,
-        message: "O username é obrigatório e não pode exceder 10 caracteres.",
+        message: "O username é obrigatório e não pode exceder 15 caracteres.",
       },
       {
         name: "userpassword",

@@ -3,6 +3,7 @@ export interface ICookieOptions {
   encode?: (val: string) => string;
   expires?: Date;
   httpOnly?: boolean;
+  partitioned: boolean;
   maxAge?: number;
   path?: string;
   priority?: "low" | "medium" | "high";
