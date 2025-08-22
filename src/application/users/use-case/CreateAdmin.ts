@@ -25,7 +25,8 @@ export class CreateAdmin {
     if (verification)
       admin = await this.usersRepository.saveAdmin(userEntities);
 
-    if (admin) return true;
+    if (admin?.adm) return true;
+    else return false;
     throw new Error("user not verification");
   }
 }

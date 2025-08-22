@@ -81,10 +81,31 @@ export class UsersControllers {
       this.adminResetPassword.bind(this)
     );
     this.middlewareManagerRoutes.registerRouter(
-      "post",
-      "/newPassword",
+      "put",
+      "/reset/password",
       this.resetPasswordByEmail.bind(this)
     );
+    this.middlewareManagerRoutes.registerRouterToUserWithTwoFactors(
+      "put",
+      "/newPassword",
+      this.replacePassword.bind(this)
+    );
+  }
+  private async replacePassword(req: IRequest, res: IResponse) {
+    try {
+      const { newPass } = req.body;
+      const user = req.userPayload;
+      const result = await this.userService.resetPasswordByEmail(
+        user.email,
+        newPass
+      );
+      if (!result) res.status(400).json({ message: "bad request" });
+      res.status(200).json({ message: "password switched" });
+    } catch (e: any) {
+      if (e.message === "user not found")
+        return res.status(404).json({ message: "user not found" });
+      res.status(500).json({ message: "err internal" });
+    }
   }
   private async adminResetPassword(req: IRequest, res: IResponse) {
     const user = await this.userService.getByIdUser(req.body.id);
@@ -135,7 +156,10 @@ export class UsersControllers {
   private async createAdmin(req: IRequest, res: IResponse) {
     try {
       const { id } = req.body;
+
       const result = await this.userService.userToAdmin(id);
+      console.log(result);
+
       if (typeof result !== "object" && result)
         return res.status(200).json(result);
       if (!result) return res.status(404).json({ menubar: "user not found" });
@@ -157,6 +181,8 @@ export class UsersControllers {
         user.jwt.email,
         password
       );
+      console.log(result);
+
       if (!result) res.status(400).json({ message: "bad request" });
       res.status(200).json({ message: "password reseted" });
     } catch (e: any) {
@@ -168,7 +194,6 @@ export class UsersControllers {
   private async createUser(req: IRequest, res: IResponse): Promise<any> {
     try {
       const inputData = req.body;
-      console.log(inputData);
 
       const token = req.params.idTokenCreate;
       if (req.cookies) {

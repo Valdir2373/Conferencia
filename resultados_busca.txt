@@ -1,0 +1,33 @@
+Resultados da busca por credenciais em código:
+
+
+--- Linhas encontradas em local.md do repositório raihan-778/zynvoice ---
+MONGODB_URI=mongodb+srv://zynvoice:gmIMxFZQDmns29MH@cluster0.wlin7fq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+
+--- Linhas encontradas em .env.txt do repositório Babcock-SENG/open-source-systems-development-eclipse-navy ---
+MONGODB_URI=mongodb+srv://reromotabele4love:CHaysbv5o9vMd0h8@cluster0.eixnu.mongodb.net/studify-app
+
+--- Linhas encontradas em server.js do repositório GabrielRaupp/TCC_90-FEITO ---
+const uri = process.env.MONGODB_URI || "mongodb+srv://Gabriel:qVeyehZk9ydz3eRZ@cluster0.imngu.mongodb.net/myDatabase?retryWrites=true&w=majority";
+
+--- Linhas encontradas em URGENT_SETUP.md do repositório sbag9697/marketgrow ---
+mongodb+srv://sbag9697:nUHawo7w3RKDqO8i@cluster0.17qmchk.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+mongodb+srv://sbag9697:nUHawo7w3RKDqO8i@cluster0.17qmchk.mongodb.net/marketgrow?retryWrites=true&w=majority&appName=Cluster0
+
+--- Linhas encontradas em DEPLOYMENT.md do repositório vikashgupta16/Maa-Janki-Hospital-Dr.-Amrit- ---
+MONGODB_URI = mongodb+srv://dramritkumarmaajanki:36NXpI1fcNPaYEjP@cluster0.uzxvbf0.mongodb.net/
+
+--- Linhas encontradas em RENDER_DEPLOYMENT_FIX.md do repositório adityaajuyal/college-library-system ---
+MONGODB_URI=mongodb+srv://Adityaajuyal:Aditya123@cluster0.sbq2m7f.mongodb.net/library_system?retryWrites=true&w=majority&appName=Cluster0
+
+--- Linhas encontradas em DEPLOYMENT_STATUS.md do repositório Mishal-Junaid/foiyfoshi-book-subscription ---
+MONGO_URI=mongodb+srv://admin:admin123@cluster0.gppxck4.mongodb.net/foiyfoshi_production?retryWrites=true&w=majority
+
+--- Linhas encontradas em app.js do repositório Manvitha-Vema/DRONA ---
+"mongodb+srv://manvitha22mic7136:0vpUhARcv5WiyTii@cluster0.jih0d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+
+--- Linhas encontradas em data.txt do repositório amanmmourya/Sunrise-Events ---
+MONGODB_URI = mongodb+srv://harshkamoriya:GRN0dXrjULXE0JXG@cluster0.8wfs9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+
+--- Linhas encontradas em data.txt do repositório Anuj090106/Sunrise-Events ---
+MONGODB_URI = mongodb+srv://harshkamoriya:GRN0dXrjULXE0JXG@cluster0.8wfs9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0

@@ -1,0 +1,32 @@
+Todos os produtos do dia 16/08/2025 :
+ 
+Produto: ACELGA, Quantidade: 45435
+Produto: AGRIAO, Quantidade: 435
+Produto: ALFACE CRESPA, Quantidade: 0
+Produto: ALFACE LISA, Quantidade: 43
+Produto: ALFACE ROXA, Quantidade: 5
+Produto: ALHO PORO, Quantidade: 43
+Produto: ALMEIRAO, Quantidade: 5
+Produto: BROCOLIS NINJA BANDEJA, Quantidade: 0
+Produto: CATALONIA, Quantidade: 0
+Produto: SALSA INDUSTRIAL, Quantidade: 0
+Produto: CHEIRO VERDE, Quantidade: 0
+Produto: COENTRO, Quantidade: 0
+Produto: COUVE FLOR BANDEJA, Quantidade: 0
+Produto: COUVE MANTEIGA, Quantidade: 0
+Produto: ESCAROLA, Quantidade: 0
+Produto: ESPINAFRE, Quantidade: 0
+Produto: HORTELA, Quantidade: 0
+Produto: LOURO, Quantidade: 0
+Produto: ALECRIM, Quantidade: 0
+Produto: MOYASHI, Quantidade: 0
+Produto: MOSTARDA, Quantidade: 0
+Produto: RABANETE, Quantidade: 0
+Produto: RUCULA, Quantidade: 0
+Produto: SALSAO, Quantidade: 0
+Produto: CEBOLINHA, Quantidade: 0
+Produto: ALFACE AMERICANA BANDEJA, Quantidade: 0
+Produto: ALFACE MIMOSA, Quantidade: 0
+Produto: ALFACE BICOLOR HIDRO, Quantidade: 0
+Produto: REPOLHO, Quantidade: 0
+Produto: REPOLHO ROXO, Quantidade: 0

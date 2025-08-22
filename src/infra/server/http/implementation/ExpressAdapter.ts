@@ -228,6 +228,14 @@ export class ExpressAdapter implements IServer {
           expressRes.cookie(name, value, expressOptions);
           return ires;
         },
+        download: (
+          filePath: string,
+          fileName: string,
+          callback?: (err: Error) => void
+        ) => {
+          expressRes.download(filePath, fileName, callback);
+        },
+
         clearCookie: (name: string, options?: ICookieOptions) => {
           const expressOptions: ExpressCookieOptions = { ...options };
           expressRes.clearCookie(name, expressOptions);

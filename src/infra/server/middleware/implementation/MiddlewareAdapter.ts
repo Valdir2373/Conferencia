@@ -11,7 +11,6 @@ import { IResponse } from "../interfaces/IResponse";
 import { IJwtUser } from "../../../security/tokens/IJwtUser";
 import { UserOutputDTO } from "../../../../application/users/DTO/UserOutput";
 import { UsersService } from "../../../service/UsersService";
-import { ErrorReply } from "redis";
 
 export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
   private isProduction = process.env.NODE_ENV === "production";
@@ -20,6 +19,43 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     private authTokenManager: IAuthTokenManager,
     private usersService: UsersService
   ) {}
+  registerRouterOneUserAllAdmin(
+    methodHTTP: HttpMethods,
+    path: string,
+    ...handlers: IMiddlewareHandler[]
+  ): void {
+    this.server.registerRouter(
+      methodHTTP,
+      path,
+      async (req, res, next) => {
+        let nextCalled = false;
+        const safeNext = () => {
+          nextCalled = true;
+        };
+
+        await this.authenticationOfUserAllAdmin(req, res, safeNext);
+
+        if (res.headersSent) {
+          return;
+        }
+
+        if (!nextCalled) {
+          return;
+        }
+
+        for (const handler of handlers) {
+          if (res.headersSent) {
+            return;
+          }
+
+          await handler(req, res, () => {});
+        }
+
+        // await this.authenticationOfUserAllAdmin(req, res, next);
+      },
+      ...handlers
+    );
+  }
 
   registerRouterToAdmin(
     methodHTTP: HttpMethods,
@@ -92,6 +128,7 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
         if (res.headersSent) {
           return;
         }
+
         await handler(req, res, () => {});
       }
     };
@@ -119,19 +156,53 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
     path: string,
     ...handlers: IMiddlewareHandler[]
   ): void {
+    const authenticationAndHandlerWrapper = async (
+      req: IRequest,
+      res: IResponse,
+      next: () => void
+    ) => {
+      let nextCalled = false;
+      const safeNext = () => {
+        nextCalled = true;
+      };
+      await this.authenticationMiddleware(req, res, safeNext);
+      if (!nextCalled) {
+        return;
+      }
+      if (res.headersSent) {
+        return;
+      }
+      await this.authenticationOfPassword(req, res, safeNext);
+      if (res.headersSent) {
+        return;
+      }
+      if (!nextCalled) {
+        return;
+      }
+      for (const handler of handlers) {
+        if (res.headersSent) {
+          return;
+        }
+        await handler(req, res, () => {});
+      }
+    };
+
     this.server.registerRouter(
       methodHTTP,
       path,
-
-      async (req, res, next) => {
-        req.userPayload = await this.getUserByCookieAndRefreshToken(req, res);
-
-        await this.authenticationOfPassword(req, res, next);
-      },
-      ...handlers
+      authenticationAndHandlerWrapper
     );
-  }
 
+    // this.server.registerRouter(
+    //   methodHTTP,
+    //   path,
+
+    //   async (req, res, next) => {
+    //     req.userPayload = await this.getUserByCookieAndRefreshToken(req, res);
+    //   },
+    //   ...handlers
+    // );
+  }
   registerRouterToAdminWithTwoFactors(
     methodHTTP: HttpMethods,
     path: string,
@@ -147,6 +218,27 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       ...handlers
     );
   }
+  private authenticationOfUserAllAdmin: IMiddlewareHandler = async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const user = await this.getUserByCookieAndRefreshToken(req, res);
+      const admin = await this.usersService.verifyIfUserAdminByEmail(
+        user.email
+      );
+      req.userPayload = user;
+      if (user || admin) return next();
+    } catch (error: any) {
+      if (error.message === "cookies faltando na requisição") {
+        return;
+      }
+
+      return res.status(401).json({ message: "unauthorized" });
+    }
+  };
+
   private authenticationOfPassword: IMiddlewareHandler = async (
     req,
     res,
@@ -166,7 +258,7 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       if (!verificationOfPassword)
         return res.status(401).json({ message: "Senha incorreta" });
 
-      next();
+      return next();
     } catch (error: any) {
       console.error(error);
 
@@ -183,12 +275,10 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       req.userPayload = user;
       return next();
     } catch (error: any) {
-      if (
-        res.headersSent &&
-        error.message === "cookies faltando na requisição"
-      ) {
+      if (error.message === "cookies faltando na requisição") {
         return;
       }
+
       return res.status(401).json({ message: "unauthorized" });
     }
   };
@@ -210,7 +300,6 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       console.log(error);
     }
   };
-
   private authenticationToAdmin: IMiddlewareHandler = async (
     req,
     res,
@@ -225,8 +314,7 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       if (admin) next();
     } catch (error: any) {
       if (
-        (res.headersSent &&
-          error.message === "cookies faltando na requisição") ||
+        error.message === "cookies faltando na requisição" ||
         error.message === "user not admin" ||
         error.message === "usuario não autorizado" ||
         error.message === "user not found"
@@ -272,7 +360,6 @@ export class MiddlewareAdapter implements IMiddlewareManagerRoutes {
       throw new Error("unauthorized");
     }
   }
-
   private async cookieDefinerUser(
     res: IResponse,
     userOutput: UserOutputDTO,

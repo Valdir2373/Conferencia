@@ -20,16 +20,20 @@ export class UserRepository implements IUserRepository {
   public async saveAdmin(
     user: UserEntities
   ): Promise<UserEntities | undefined> {
-    user.updateFields({
-      adm: true,
-    });
-    const affectedRows = await this.dataAccess.update(
-      this.collectionName,
-      { id: user.id },
-      user
-    );
-    if (affectedRows > 0) {
-      return user;
+    const userToAdmin = await this.getById(user.id);
+    if (userToAdmin) {
+      userToAdmin.updateFields({
+        adm: true,
+      });
+      console.log(userToAdmin);
+      const affectedRows = await this.dataAccess.update(
+        this.collectionName,
+        { id: userToAdmin.id },
+        userToAdmin
+      );
+      if (affectedRows > 0) {
+        return userToAdmin;
+      }
     }
     return undefined;
   }

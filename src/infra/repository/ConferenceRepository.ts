@@ -32,11 +32,15 @@ export class ConferenceRepository implements IConferenceRepository {
         date: conferenceEntitie.date,
       });
 
+      console.log(existingConference);
+
       const affectedRows = await this.dataAcess.update(
         this.collectionName,
         { id: existingConference.id },
         existingConference
       );
+
+      console.log(affectedRows);
 
       if (affectedRows > 0) {
         return existingConference;

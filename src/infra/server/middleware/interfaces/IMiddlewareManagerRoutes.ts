@@ -18,6 +18,11 @@ export interface IMiddlewareManagerRoutes {
     path: string,
     ...handlers: IMiddlewareHandler[]
   ): void;
+  registerRouterOneUserAllAdmin(
+    methodHTTP: HttpMethods,
+    path: string,
+    ...handlers: IMiddlewareHandler[]
+  ): void;
   registerRouterToUserWithTwoFactors(
     methodHTTP: HttpMethods,
     path: string,

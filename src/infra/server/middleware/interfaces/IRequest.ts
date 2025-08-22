@@ -15,6 +15,6 @@ export interface IRequest {
   method: string;
   path: string;
   userPayload: IJwtUser;
-  cookies?: Cookies;
+  cookies?: Cookies | any;
   file: (fieldName: string) => IFile | undefined;
 }

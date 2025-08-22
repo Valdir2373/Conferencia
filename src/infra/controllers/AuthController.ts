@@ -171,7 +171,6 @@ export class AuthController {
     await this.token.revokeTokenTimerSet(token);
     res.clearCookie("tokenRegister");
     return res.status(200).json({ message: "user authenticed" });
-    return res.redirect("http://localhost:5173/");
   }
 
   private async resendVerification(
@@ -354,19 +353,19 @@ export class AuthController {
 
       const userOutput = await this.usersService.loginUserService(inputData);
 
-      if (!userOutput)
-        return res.status(401).json({ message: "Access Denied" });
+      if (!userOutput) return res.status(401).json({ message: "acess denied" });
 
       if (req.cookies)
         if (req.cookies.tokenRegister) res.clearCookie("tokenRegister");
       this.cookieDefinerUser(res, userOutput);
       return res.status(200).json(userOutput);
     } catch (e: any) {
-      if (e.message === "Erro de validação do DTO") {
-        console.log(e.message + " tratado");
-      }
+      if (e.message === "Erro de validação do DTO")
+        return console.log(e.message + " tratado");
       if (e.message === "user not verificated")
         return res.status(403).json({ message: e.message });
+      if (e.message === "user not found")
+        return res.status(404).json({ message: e.message });
     }
   }
 

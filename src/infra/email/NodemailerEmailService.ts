@@ -175,7 +175,7 @@ export class NodemailerEmailService implements IEmailService {
   ) {
     const expiresMs = time * 60 * 1000;
     const expiresSec = expiresMs / 1000;
-    return `http:/localhost:5173/verifyEmail/${this.token.generateTokenTimerSet(
+    return `https://devoted-robin-striking.ngrok-free.app/verifyEmail/${this.token.generateTokenTimerSet(
       {
         email: userOutputDTO.email,
       },
@@ -183,7 +183,7 @@ export class NodemailerEmailService implements IEmailService {
     )}`;
   }
   private genarateLinkResetPassword(userOutputDTO: UserOutputDTO) {
-    return `http:/localhost:5173/reset-password/${this.token.generateTokenTimerSet(
+    return `https://devoted-robin-striking.ngrok-free.app/reset-password/${this.token.generateTokenTimerSet(
       {
         email: userOutputDTO.email,
       },

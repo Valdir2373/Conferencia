@@ -7,6 +7,12 @@ export interface IResponse {
   sendArchive: (data: any) => void;
   setHeader: (name: string, value: string) => IResponse;
   cookie: (name: string, value: string, options?: ICookieOptions) => IResponse;
+  download: (
+    filePath: string,
+    fileName: string,
+    callback?: (err: Error) => void
+  ) => void;
+
   clearCookie: (name: string, options?: ICookieOptions) => IResponse;
   redirect: (url: string) => void;
   headersSent: any;

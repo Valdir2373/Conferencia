@@ -202,8 +202,9 @@ export class UsersService {
     userLogin: IUserLoginDto
   ): Promise<UserOutputDTO | false> {
     const userOutput = await this.getByEmailUser(userLogin.useremail);
-    if (!userOutput) return false;
+    if (!userOutput) throw new Error("user not found");
     const user = await this.getUserByEmail.execute(userOutput.email);
+
     if (user.verification !== true) throw new Error("user not verificated");
     const userInput: UserInputDTO = {
       id: user.id,

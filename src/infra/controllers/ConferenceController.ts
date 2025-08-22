@@ -6,6 +6,9 @@ import { ConferencesService } from "../service/ConferenceService";
 import { ConferenceSchemas } from "../../schemas/ConferenceSchemas";
 import { IJwtUser } from "../security/tokens/IJwtUser";
 import { IMiddlewareManagerRoutes } from "../server/middleware/interfaces/IMiddlewareManagerRoutes";
+import { ConvertFileTxtById } from "../../application/conferences/use-cases/ConvertFileTxtById";
+import path from "path";
+import fs from "fs/promises";
 
 export class ConferenceController {
   constructor(
@@ -17,6 +20,16 @@ export class ConferenceController {
   ) {}
 
   async mountRoutes() {
+    this.middlewareManagerRoutes.registerRouterOneUserAllAdmin(
+      "get",
+      "/conference/downloadById/:idConference",
+      this.downloadConferenceByIdToUser.bind(this)
+    );
+    this.middlewareManagerRoutes.registerRouterOneUserAllAdmin(
+      "get",
+      "/getCopy/conference/:idConference",
+      this.getCopyConference.bind(this)
+    );
     this.middlewareManagerRoutes.registerRouterToUser(
       "post",
       "/conference",
@@ -58,6 +71,13 @@ export class ConferenceController {
       this.getConferenceById.bind(this)
     );
   }
+
+  async getCopyConference(req: IRequest, res: IResponse) {
+    const id = req.params.idConference;
+    const text = await this.conferencesService.convertConferenceInTextById(id);
+    res.status(200).send(text);
+  }
+
   async getConferenceById(req: IRequest, res: IResponse) {
     const conference = await this.conferencesService.getConferenceById(
       req.params.id
@@ -65,6 +85,42 @@ export class ConferenceController {
     if (!conference) return res.status(400).json({ message: "not conference" });
     return res.status(200).json(conference);
   }
+  async downloadConferenceByIdToUser(req: IRequest, res: IResponse) {
+    const { idConference } = req.params;
+    try {
+      const email = req.userPayload.email;
+      // const verifyIfConferenceIsOfUserByEmail = ()
+      console.log(email);
+
+      const filePathWithName =
+        await this.conferencesService.convertConferenceToFileTxtById(
+          idConference
+        );
+
+      console.log(filePathWithName.split("\\").pop());
+      const filePath = filePathWithName;
+      console.log(filePath);
+
+      res.download(filePath, "conferencia.txt", (err) => {
+        if (err) {
+          console.error("Erro ao enviar o arquivo:", err);
+          if (!res.headersSent) {
+            res.status(500).json({ error: "Erro ao baixar o arquivo." });
+          }
+        } else {
+          console.log("Arquivo enviado com sucesso.");
+        }
+      });
+      return await fs.rm(filePath);
+      // return res.status(200).json({ message: "arquivo enviado" });
+    } catch (error: any) {
+      if (error.message === "conference not found")
+        return res.status(404).json({ message: error.message });
+      console.error("Erro no processo de conversão ou download:", error);
+      res.status(500).json({ error: "Erro interno do servidor." });
+    }
+  }
+
   async getConferenceOfUserByEmail(req: IRequest, res: IResponse) {
     const { emailUser } = req.body;
     if (!emailUser) return res.status(400).json({ message: "not emailUser" });
@@ -88,6 +144,7 @@ export class ConferenceController {
 
   async updateConferenceById(req: IRequest, res: IResponse) {
     const conference = req.body;
+
     await this.conferencesService.updateConferenceByIdAndEmail(
       conference,
       req.userPayload.email
@@ -135,6 +192,7 @@ export class ConferenceController {
 
     try {
       const result = await this.conferencesService.convertPdf(inputData);
+      // fs.mkdir()
       return res.status(200).json(result);
     } catch (error) {
       return res.status(500).json({ message: "Erro ao processar o PDF" });

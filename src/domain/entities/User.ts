@@ -69,6 +69,9 @@ export class UserEntities {
     if (data.username !== undefined) {
       this.username = data.username;
     }
+    if (data.adm !== undefined) {
+      this.adm = data.adm;
+    }
     if (data.email !== undefined) {
       this.email = data.email;
     }

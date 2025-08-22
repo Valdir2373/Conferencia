@@ -9,9 +9,11 @@ import { PdfFileMetadata } from "../../application/conferences/DTO/PdfFileMetada
 import { GetConferenceByEmail } from "../../application/conferences/use-cases/GetConferenceByEmail";
 import { GetConferenceById } from "../../application/conferences/use-cases/GetConferenceById";
 import { ConferencesOutput } from "../../application/conferences/DTO/ConferenceOutput";
-import { UpdateConferenceById } from "../../application/conferences/use-cases/UpdateConference";
+import { UpdateConferenceByEmail } from "../../application/conferences/use-cases/UpdateConference";
 import { ConferenceInputDataUpdate } from "../../application/conferences/DTO/ConferenceInputUpdate";
 import { DeleteConferenceById } from "../../application/conferences/use-cases/DeleteConferenceById";
+import { ConvertFileTxtById } from "../../application/conferences/use-cases/ConvertFileTxtById";
+import { ConvertConferenceInText } from "../../application/conferences/use-cases/ConvertConferenceInText";
 
 export class ConferencesService {
   private addConference: AddConference;
@@ -19,13 +21,15 @@ export class ConferencesService {
   private deleteByIdOneConference: DeleteConferenceById;
   private getConferenceByEmailUseCase: GetConferenceByEmail;
   private getConferenceByIdUseCase: GetConferenceById;
-  private updateConferenceById: UpdateConferenceById;
+  private updateConferenceByEmail: UpdateConferenceByEmail;
+  private convertFileTxtById: ConvertFileTxtById;
+  private convertConferenceInText: ConvertConferenceInText;
   constructor(
     private conferenceRepository: ConferenceRepository,
     private createId: ICreateId,
     private pdfReadConvert: IPdfReadConvert
   ) {
-    this.updateConferenceById = new UpdateConferenceById(
+    this.updateConferenceByEmail = new UpdateConferenceByEmail(
       this.conferenceRepository
     );
     this.addConference = new AddConference(
@@ -36,13 +40,25 @@ export class ConferencesService {
     this.getConferenceByEmailUseCase = new GetConferenceByEmail(
       this.conferenceRepository
     );
+    this.convertFileTxtById = new ConvertFileTxtById();
     this.deleteByIdOneConference = new DeleteConferenceById(
+      this.conferenceRepository
+    );
+    this.convertConferenceInText = new ConvertConferenceInText(
       this.conferenceRepository
     );
     this.getConferenceByIdUseCase = new GetConferenceById(
       this.conferenceRepository
     );
   }
+  async convertConferenceToFileTxtById(id: string) {
+    const text = await this.convertConferenceInTextById(id);
+    return await this.convertFileTxtById.execute(text);
+  }
+  async convertConferenceInTextById(id: string) {
+    return await this.convertConferenceInText.execute(id);
+  }
+
   async getConferenceById(id: string) {
     return await this.getConferenceByIdUseCase.execute(id);
   }
@@ -78,7 +94,7 @@ export class ConferencesService {
     conference: ConferenceInputDataUpdate,
     email: string
   ) {
-    await this.updateConferenceById.execute(conference, email);
+    await this.updateConferenceByEmail.execute(conference, email);
 
     return { message: "ok" };
   }

@@ -13,38 +13,68 @@ async function extractAndCleanPDFText(pdfFilePath) {
     throw error;
   }
 }
-
 const TextFormatedProduct = (text) => {
-  text = text.replace(/[0-9]/g, "");
-  text = text.replace(/[^\w\s]/g, "");
+  text = text.replace(/\s*\(.*?\)\s*/gs, " ").trim();
+  text = text.replace(/[^\w\s(),]/g, "");
   text = text.toUpperCase();
+
   const index = text.search("FATURA  DUPLICATA");
-  text = text.slice(index, text.length);
-  text = text.split("\n");
-  const a = [];
-  for (const txt of text) {
+
+  const slicedText = text.slice(index, text.length);
+  const lines = slicedText.split("\n");
+  const textFormated = formatePhrase_ALF(lines);
+
+  const lista = [];
+  const regexAbertura = /\s*\(.+/;
+  const regexFechamento = /.+?\)/;
+
+  for (const txt of textFormated) {
     if (
       txt &&
       txt !== "UN" &&
-      txt !== "un" &&
       txt !== "KL" &&
       txt !== "kl" &&
-      txt !== "FATURA  DUPLICATA"
+      txt !== "020" &&
+      txt !== "040" &&
+      txt !== "FATURA  DUPLICATA" &&
+      !txt.includes(",000,000")
     ) {
       if (
         txt ===
-        "INSCRIO MUNICIPALVALOR TOTAL DOS SERVIOSBASE DE CLCULO DE ISSQNVALOR DO ISSQN"
+          "INSCRIO MUNICIPALVALOR TOTAL DOS SERVIOSBASE DE CLCULO DE ISSQNVALOR DO ISSQN" ||
+        txt === "CLCULO DO ISSQN"
       ) {
-        return a;
+        return lista;
       }
-      a.push(txt);
+      let txtLimpado = txt;
+      if (txt.includes("(")) {
+        txtLimpado = txt.replace(regexAbertura, "").trim();
+      }
+      if (txt.includes(")")) {
+        txtLimpado = txt.replace(regexFechamento, "").trim();
+      }
+      lista.push(txtLimpado);
     }
   }
+
+  return a;
+};
+const formatePhrase_ALF = (textToFormate) => {
+  const textFormated = textToFormate.map((item) => {
+    if (typeof item === "string") {
+      let newItem = item;
+      return newItem;
+    }
+    return item;
+  });
+
+  return textFormated;
 };
 
 const pdfExtractProducts = async (pdfFilePath) => {
   try {
     const cleanedText = await extractAndCleanPDFText(pdfFilePath);
+    await fs.rm(pdfFilePath);
     return cleanedText;
   } catch (err) {
     console.error("Erro no processamento:", err);
